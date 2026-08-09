@@ -1,0 +1,416 @@
+# BCIP Frontend-First Implementation Plan
+
+**Version:** 1.1
+**Corresponding SRS:** BCIP SRS v1.3
+**Purpose:** Guide an AI coding assistant (Claude Code) to build BCIP's **frontend first, against a mocked API contract**, then build the real Django/DRF/PostgreSQL/blockchain backend and swap the mocks out one endpoint at a time.
+
+**Changelog from v1.0:** Added a binding "UI Development Standards" section (single source of truth for color/tokens, mandatory component reuse, no assumed/arbitrary colors, status signaling beyond color alone, consistent layout/spacing) that governs every Part A phase. Phase 0 now explicitly establishes the token file, status/icon definitions, and shared page-shell layouts. Phases 2–5 each gained a "UI Standards check" line in their completion criteria. Phase 6 is now also a formal, checklist-driven UI Standards audit gate before Part B begins.
+
+---
+
+## Why Frontend-First, and the Risk It Introduces
+
+Building the UI first lets you validate the user experience, screen flow, and data shape early, without waiting on Docker, PostgreSQL, Django, or a deployed smart contract. The trade-off is **contract drift**: if the frontend invents response shapes as it goes, the backend built later may not match, forcing rework on one side or the other.
+
+This plan manages that risk with one rule: **Phase 1 freezes a written API contract before any UI component is built.** Every frontend phase codes against that contract via a mock service layer. Every backend phase's job is to make the real API match the same contract exactly — not to redesign it. If the backend genuinely needs to deviate from the contract, the contract document is updated first and the frontend's mock/types are updated to match, in a dedicated small task, before backend work continues.
+
+---
+
+## How to Use This Plan
+
+1. Open this file and the SRS (v1.3) in your Claude Code session.
+2. Work through **Part A (Frontend)** fully before starting **Part B (Backend)**, except Phase 1 (API Contract), which both parts depend on and should never be skipped or rushed.
+3. In Part B, each phase begins with an explicit "Frontend Integration" step: point the existing UI at the real endpoint and delete the corresponding mock. Do not leave both a mock and a real implementation active for the same endpoint past the end of that phase.
+4. Verify each phase's "Phase Completion Criteria" before moving on.
+5. **Every task in Part A is additionally governed by the UI Development Standards below.** These are not a separate phase — they are binding rules applied continuously, checked at the end of every frontend phase alongside that phase's own completion criteria.
+
+---
+
+## UI Development Standards (Binding — Applies to Every Frontend Phase)
+
+These rules exist to prevent the most common way an AI-assisted build turns unprofessional: each phase silently reinventing its own button, its own shade of blue, its own spacing scale, because it was built in isolation from the phases before it. The rule is not "make it look nice" — it's **"there is exactly one source of truth for every visual decision, and every phase must use it, not invent a new one."**
+
+### 1. Single Source of Truth for Color — No Assumed Colors
+
+- All color values live in **one place**: the design tokens defined in Phase 0 (e.g., a Tailwind config, CSS variables file, or theme object). No component, in any phase, may contain a raw hex/RGB value or an arbitrary Tailwind color class (`text-blue-500`, `bg-[#3b82f6]`, etc.) — it must reference a named token (`text-primary`, `bg-surface`, `text-danger`).
+- **Claude must not invent a color palette from assumption or default framework colors.** Before Phase 0 builds any token file, either (a) the user supplies brand colors/a reference, or (b) Claude asks a single clarifying question to establish a minimal palette (primary, neutral scale, and semantic success/warning/danger/info) rather than silently picking "professional-looking blue" and moving on.
+- Status-driven colors are the highest-risk spot for drift, since the same five-state enum (`PENDING`/`VALID`/`EXPIRED`/`REVOKED`/`FAILED`) and four verification outcomes (`VALID`/`EXPIRED`/`REVOKED`/`TAMPERED`) get rendered in at least three different screens (dashboard table, certificate detail, public verification result) across three different phases. Define the color **and** the non-color signal (icon/label — see Rule 3) for each status **once**, in the Phase 0 token/component layer, and have every later phase import it. A later phase is never allowed to pick its own color for `REVOKED` because "it looked fine there."
+- Any new semantic color need discovered mid-plan (e.g., a "stale-PENDING" warning state introduced in Phase 4) must be added to the central token file first, then consumed — never hardcoded locally "for now."
+
+### 2. Component Reuse — No Duplication
+
+- Before writing any new UI element, check the shared component set from Phase 0 (Button, Input, Card, Badge/StatusPill, Table, Modal, Toast) and later additions to it. If something close already exists, extend it with a prop rather than creating a near-duplicate component or copy-pasting markup with small tweaks.
+- If a genuinely new reusable pattern emerges in a later phase (e.g., a multi-step form wizard for password reset in Phase 3), it is built **once**, added to the shared component set, and reused — the 3-step password-reset wizard and any future multi-step flow use the same wizard component, not two independent implementations.
+- Forms across the app (register, login, reset password, certificate creation) share one form-field/label/error-message pattern, not per-screen variations.
+- Before marking any phase complete, scan the phase's new components for near-duplicate JSX/markup against the existing shared set. If two components are >80% structurally identical, they must be merged or one must be built on top of the other via composition/props.
+
+### 3. Status and State Signaling — Never Color Alone
+
+- Every status or outcome (certificate status, verification result, form validation state) is communicated through **at least two channels** — color plus one of: icon, text label, or shape/border — so the UI remains professional and accessible, and so a screenshot in grayscale still communicates meaning. This was already required by Phase 6's accessibility pass; it is now a standing rule applied from Phase 2 onward, not a fix bolted on at the end.
+
+### 4. Consistency of Layout, Spacing, and Typography
+
+- Use the spacing scale and type scale defined in Phase 0 exclusively — no one-off `margin: 13px` or arbitrary font sizes. If the scale is missing a needed value, add it to the token file, don't work around it locally.
+- Page-level layout (header/nav placement, content max-width, padding rhythm) is defined once in a shared layout component/wrapper and reused by every authenticated screen (dashboard, detail, creation) and, separately, once for the public-facing screens (verification, landing). A later phase does not introduce its own page shell.
+
+### 5. Enforcement — This Is Part of "Done," Not a Nice-to-Have
+
+- Add "UI Standards check" as a standing line item in every Part A phase's Phase Completion Criteria (already reflected below): no raw color values, no near-duplicate components, every status shown with a non-color signal, and no page-level layout reinvention.
+- If any of these are violated while building a phase, the fix belongs in the shared token/component layer, not as a local override — even if that means briefly stepping back into Phase 0's files while nominally working on a later phase.
+
+---
+
+# PART A — FRONTEND (build first, against mocks)
+
+## Phase 0 – Frontend Scaffolding & Design System
+
+**Goal:** A runnable React/Vite app with routing, a component/design-token baseline, and state-management conventions established, containing no real feature screens yet.
+
+**Tasks:**
+- Scaffold a React + Vite project (TypeScript). Set up routing (React Router) with placeholder routes for: `/login`, `/register`, `/verify-email`, `/reset-password`, `/dashboard`, `/certificates/new`, `/certificates/:id`, `/verify/:certId` (public), `/verify` (public, blank form).
+- **Establish the design-token file as the single source of truth for color, spacing, and typography** (e.g., a Tailwind theme config or CSS variables file) per the UI Development Standards above. Do not default to an assumed palette — if no brand colors/reference are supplied, ask one clarifying question to establish a minimal palette: primary, a neutral gray scale, and semantic `success`/`warning`/`danger`/`info` colors. Explicitly define the color **and** icon/label pairing for each of the five certificate statuses (`PENDING`/`VALID`/`EXPIRED`/`REVOKED`/`FAILED`) and four verification outcomes here, once, so no later phase has to invent them.
+- Build the shared component set (Button, Input, Card, Badge/StatusPill, Table, Modal, Toast) sourcing every color/spacing/type value from the token file — zero raw hex values or arbitrary utility classes anywhere in these components.
+- Build one shared authenticated-page layout wrapper and one shared public-page layout wrapper (header/nav placement, content max-width, padding rhythm), per the layout-consistency rule, for later phases to use rather than each defining their own page shell.
+- Set up a global state/data-fetching convention (e.g., TanStack Query or a lightweight context) that all later phases will use to call the (currently mock) API layer, so swapping mocks for real calls in Part B is a one-line change per hook, not a rewrite.
+- Set up an `.env`-based config for `VITE_API_BASE_URL`, defaulted to a value the mock layer will intercept.
+
+**SRS Requirements Addressed:** §4.1 (User Interfaces, scaffolding only)
+**Phase Completion Criteria:**
+- `npm run dev` serves the app with all placeholder routes reachable and rendering a "Coming soon" stub.
+- Shared component set is used by at least one placeholder screen (proves the imports work, not just that files exist).
+- A repo-wide search for raw hex values (`#[0-9a-fA-F]{3,6}`) and inline `style={{color:`/`rgb(` usage outside the token file returns zero matches.
+- The five certificate statuses and four verification outcomes each have a defined color, icon, and label in the token/component layer, listed in one place for later phases to reference.
+- Two page-shell components exist (authenticated, public) and no screen-specific layout code exists yet, since no feature screens have been built.
+
+---
+
+## Phase 1 – API Contract & Mock Data Layer (the phase that de-risks everything else)
+
+**Goal:** A single, written, versioned API contract covering every endpoint the frontend will call, plus a mock service implementation that returns realistic fixture data matching that contract exactly. This is the artifact that both Part A and Part B build against.
+
+**Tasks:**
+- Write `API_CONTRACT.md` (or equivalent) documenting, for every endpoint in SRS §3 and the Implementation Plan's backend phases: method, path, request body shape, response body shape (success and error), and status codes. Base this directly on the SRS endpoint list — do not invent new endpoints or field names not implied by the SRS's FR-IDs and data model (§6).
+- Explicitly include the 5-state certificate status enum (`PENDING`/`VALID`/`EXPIRED`/`REVOKED`/`FAILED`, FR-4.3), the token strategy shape (access token in body, refresh token as cookie — the mock layer can simulate the cookie via an in-memory flag), and the verification result shape (`VALID`/`EXPIRED`/`REVOKED`/`TAMPERED`/`NOT_FOUND`, §7.6).
+- Generate matching TypeScript types/interfaces from the contract, used by every component built afterward — this is what makes "swap the mock for the real call" a mechanical, low-risk operation later.
+- Build a mock service layer (e.g., MSW — Mock Service Worker, or a simple fetch-intercepting module) implementing every endpoint from the contract against an in-memory fixture dataset: a handful of organizations, certificates in each of the five statuses, and at least one certificate whose mock verification result is `TAMPERED` (so Phase 2's UI has something to render for the worst-case path, not just the happy path).
+- Simulate realistic latency and occasional error responses (e.g., a 10% chance of a 500 on one endpoint, toggleable) in the mock layer, so later UI work has to handle loading/error states rather than assuming everything always succeeds instantly.
+
+**SRS Requirements Addressed:** All of §3 and §6 (as a documentation/typing exercise, not implementation)
+**Phase Completion Criteria:**
+- `API_CONTRACT.md` exists and covers every endpoint referenced anywhere else in this plan and in the SRS.
+- TypeScript types exist for every request/response shape in the contract.
+- The mock service layer responds correctly to a manual smoke test of at least one call per resource (auth, certificates, public verification).
+- Fixture data includes at least one certificate in each of the five statuses, plus one that mock-verifies as `TAMPERED`.
+
+---
+
+## Phase 2 – Public Verification Portal (Frontend, Mocked)
+
+**Goal:** The unauthenticated verification flow is fully built and interactive against the mock layer. Built first among the feature screens because it has the simplest state (no auth) and directly exercises the trickiest UI states (tamper warning, not-found, expired).
+
+**Tasks:**
+- Build the public verification page (`/verify`): a Certificate ID input, submit action, and a results panel.
+- Build the results panel to render all five outcomes distinctly per FR-5.4/5.6/5.7: `VALID` (green, full details + block-explorer link), `EXPIRED` (neutral/amber, details + expiry date), `REVOKED` (red, details + revocation reason if available), `TAMPERED` (prominent red warning per FR-5.6, explicitly stating the hash mismatch), `NOT_FOUND` (simple, non-alarming empty state).
+- Build `/verify/:certId` as the QR-code landing route: it auto-populates the ID field and auto-submits, per FR-5.2.
+- Add loading and error states (using the latency/error simulation from Phase 1) so a slow or failed mock call doesn't leave the UI stuck or blank.
+
+**SRS Requirements Addressed:** FR-5.1–5.7 (frontend rendering only; real hash computation, rate limiting, and blockchain reads land in Part B)
+**Phase Completion Criteria:**
+- Entering each fixture Certificate ID from Phase 1 renders the visually and textually correct outcome for its status, including the `TAMPERED` fixture.
+- Navigating directly to `/verify/:certId` for a valid fixture ID auto-populates and auto-submits.
+- Entering a non-existent ID renders the `NOT_FOUND` state without a console error.
+- Toggling the Phase 1 mock error-injection and re-submitting shows a visible error state, not a blank screen.
+- **UI Standards check:** all status/outcome colors come from Phase 0's token file (no new raw colors introduced); each outcome shows a non-color signal (icon/label) alongside color; the page uses the shared public-page layout wrapper, not a new one.
+
+---
+
+## Phase 3 – Organization Authentication UI (Frontend, Mocked)
+
+**Goal:** Registration, email verification, login, password reset, and logout are fully built against the mock auth endpoints, including lockout and error messaging.
+
+**Tasks:**
+- Build `/register`, `/verify-email`, `/login`, and the three-step `/reset-password` flow as distinct screens/steps, per SRS §3.1.3.
+- Wire form validation matching the contract's error shapes (field-level errors per FR-2.1.2's pattern, reused here for auth forms).
+- Implement the client-side token-handling convention: store the access token in memory (not localStorage — this constraint matters even in the mock phase so the pattern is right by the time it's load-bearing), and treat the refresh token as invisible/cookie-only, matching FR-1.3.
+- Render the generic "invalid credentials" message on login failure without distinguishing "wrong password" from "no such account," matching FR-1.2 — build this into the mock response shape in Phase 1 if not already present.
+- Render an account-locked state (mock a 423 response) with a clear "try again in X minutes" message, per FR-1.6.
+- Build a logout action that clears in-memory auth state and redirects to `/login`.
+
+**SRS Requirements Addressed:** FR-1.1–1.9 (frontend rendering and client-side token handling only; real hashing, lockout logic, and code expiry land in Part B)
+**Phase Completion Criteria:**
+- Full registration → verify-email → login flow is navigable end-to-end against the mocks.
+- Password reset three-step flow is navigable end-to-end against the mocks.
+- Submitting wrong mock credentials shows the generic error, not a field-specific "wrong password."
+- Triggering the mock's locked-account response renders the lockout message.
+- After mock login, protected routes (`/dashboard` etc.) become reachable; after logout, they redirect back to `/login`.
+- **UI Standards check:** register/login/reset-password forms share one form-field/label/error pattern (no per-screen variant built); the 3-step reset wizard is a single reusable stepper component, not three independent screens; no new colors introduced outside the token file.
+
+---
+
+## Phase 4 – Organization Dashboard UI (Frontend, Mocked)
+
+**Goal:** Authenticated users can list, search, and view certificate details against the mock data, with all five statuses rendered distinctly.
+
+**Tasks:**
+- Build `/dashboard`: a paginated, searchable/filterable table of certificates (recipient name, Certificate ID, issue date, status badge), per FR-3.1/3.2/NFR-2.2. Use the shared `Table` and `StatusPill` components from Phase 0.
+- Build `/certificates/:id`: full detail view including the blockchain transaction reference field (rendered as a stub/placeholder value from the mock until Part B provides a real one), per FR-3.3.
+- Build the "stale PENDING" and `FAILED` states as visibly actionable (a "Retry Issuance" button, disabled/wired to a mock endpoint) per FR-2.9, so the UI affordance exists before the backend logic behind it does.
+- Add pagination controls wired to the mock's paginated response shape.
+
+**SRS Requirements Addressed:** FR-3.1–3.3, NFR-2.2 (frontend rendering; organization-scoping enforcement is a backend concern, Part B)
+**Phase Completion Criteria:**
+- Dashboard table renders all fixture certificates with correct status badges for each of the five statuses.
+- Search/filter narrows the visible rows against the mock data without a full page reload.
+- Clicking into a certificate shows its full detail view, including a visible (even if placeholder) blockchain reference.
+- A `FAILED` and a stale-`PENDING` fixture both show a "Retry Issuance" action.
+- Pagination controls change the visible page against a mock dataset large enough to require more than one page (extend Phase 1 fixtures if needed).
+- **UI Standards check:** status badges in the table and detail view use the exact same `StatusPill` component and Phase 0 status/color/icon definitions (no re-implementation); the dashboard and detail screens use the shared authenticated-page layout wrapper.
+
+---
+
+## Phase 5 – Certificate Creation & Revocation UI (Frontend, Mocked)
+
+**Goal:** Authenticated users can create and revoke certificates through fully validated forms against the mock layer.
+
+**Tasks:**
+- Build the certificate creation form (`/certificates/new`): recipient name, recipient email, course title, issue date, optional expiry date, per FR-2.1. Apply the field-length and format rules from FR-2.1.1 (200-char name/title cap, RFC 5322 email format, no HTML-like content) as **client-side** validation, understanding that FR-2.1.1's real enforcement is server-side (Part B) — this is a UX nicety, not the security boundary.
+- On submit, show the async issuance pattern per FR-2.7: an immediate "Certificate created, confirming on-chain…" state reflecting `PENDING`, without blocking the UI, matching the HTTP 202 pattern the mock should simulate.
+- Build the revoke action on the detail view: a modal requiring a mandatory reason field per FR-3.4, submitting to the mock, and optimistically/eventually reflecting `REVOKED` status per FR-3.5.
+- Wire the idempotency-key pattern client-side (generate and send a UUID `Idempotency-Key` header per FR-2.2.1) even though the mock doesn't need to deduplicate — this ensures Part B's backend integration is a drop-in, not a new client-side feature.
+
+**SRS Requirements Addressed:** FR-2.1, FR-2.1.1 (client-side subset), FR-2.2.1 (header wiring), FR-2.7, FR-3.4, FR-3.5
+**Phase Completion Criteria:**
+- Submitting a valid form against the mock adds a new `PENDING` certificate to the dashboard list without a page reload.
+- Submitting an invalid form (per FR-2.1.1's rules) shows field-level errors and does not call the mock create endpoint.
+- Revoking a certificate requires a non-empty reason and updates its status to `REVOKED` in the UI after the mock call resolves.
+- Every create request sent by the browser includes a unique `Idempotency-Key` header (verify via browser devtools network tab).
+- **UI Standards check:** the creation form reuses the shared form-field pattern from Phase 3, not a new one; the revoke modal reuses the shared `Modal` component from Phase 0; field-level error styling matches the auth forms' error styling exactly (same token, same component).
+
+---
+
+## Phase 6 – Frontend Polish, UI Standards Audit & State-Coverage Review
+
+**Goal:** Close remaining UX gaps and formally audit the whole frontend against the UI Development Standards before backend work begins, so Part B is purely "wire it up," not "also finish or clean up the UI."
+
+**Tasks:**
+- Review every screen from Phases 2–5 against a checklist of states: loading, empty, error, and each relevant status value — fill any gaps found.
+- Add responsive/mobile layout passes for the public verification page and the dashboard table (these are the two screens most likely to be used on a phone, per SRS §4.2's QR-scanning context).
+- Add basic accessibility passes (form labels, focus management on modals, color contrast for status badges) since status color-coding (FR-5.6's tamper warning, FR-4.3's five statuses) currently carries meaning primarily through color.
+- Confirm the mock service layer can be disabled via a single config flag (`VITE_API_BASE_URL` pointing at a real backend) without any component code changes — this is the actual test of whether Phase 1's contract discipline held.
+- **Run a full UI Development Standards audit** across the entire codebase built so far:
+  - Grep for raw hex/RGB values and arbitrary color utility classes outside the token file — fix every hit.
+  - Diff every "Button," "Input," "Card," "Modal," etc. instance across all screens for structural near-duplication (>80% identical markup); consolidate any found.
+  - Confirm every status/outcome badge across all three screens (dashboard, detail, public verification) resolves to the exact same token definitions from Phase 0 — not per-screen re-implementations that happen to look similar.
+  - Confirm every screen uses one of the two shared page-shell layouts from Phase 0 — no screen-specific layout code.
+
+**SRS Requirements Addressed:** §5.3 (Usability)
+**Phase Completion Criteria:**
+- A written checklist (loading/empty/error/each-status) is completed for every screen built in Phases 2–5, with no unchecked gaps.
+- Public verification and dashboard screens are usable at a mobile viewport width (test at 375px).
+- Status badges are distinguishable by shape/icon/text, not color alone.
+- Flipping `VITE_API_BASE_URL` and disabling the mock layer changes zero component source files (only config).
+- **UI Standards audit results are documented with zero unresolved findings**: zero raw color values outside the token file, zero unresolved near-duplicate components, zero screen-specific layout shells, and a confirmed single definition source for every status/outcome badge used anywhere in the app.
+
+---
+
+# PART B — BACKEND (build to match the frozen contract)
+
+From here, phases mirror the original SRS-driven backend plan, but each one **starts** by wiring the corresponding frontend screen to the real endpoint and deleting its mock, and only proceeds to new backend-only work afterward.
+
+## Phase 7 – Backend Scaffolding & Environment Setup
+
+**Goal:** A runnable Django/DRF project with PostgreSQL, matching the API contract's URL structure exactly.
+
+**Tasks:**
+- Initialize Django with `certificates` and `accounts` apps; URL routes should match `API_CONTRACT.md` path-for-path.
+- Configure PostgreSQL via environment variables; no Redis or external cache (SRS §2.4, NFR-1.10).
+- Set up Docker/docker-compose (mandatory — see prior plan's WeasyPrint rationale).
+- Install: `djangorestframework`, `djangorestframework-simplejwt`, `web3.py`, `django-q2`, `WeasyPrint`, `qrcode[pil]`, `django-ratelimit`, `argon2-cffi`.
+- Install a Solidity toolchain (Hardhat/Foundry) for the next phase.
+- Write `CertificateRegistry.sol` per SRS §7.4; compile only, do not deploy yet.
+- Create `.env.example`; run initial migrations to confirm DB connectivity.
+
+**SRS Requirements Addressed:** 2.4, 2.5 (partial), 7.3, 7.4, NFR-1.2, NFR-5.2
+**Phase Completion Criteria:**
+- `docker-compose up` runs the app and PostgreSQL without host-level dependency installation.
+- Contract compiles with zero errors.
+- Every route in `API_CONTRACT.md` has a corresponding (even if unimplemented/stubbed) DRF URL pattern, confirmed by listing `urlpatterns` against the contract file.
+
+---
+
+## Phase 8 – Smart Contract Unit Testing & Deployment
+
+**Goal:** Verify contract access control before deployment, per NFR-1.9 — unchanged in substance from the previous plan.
+
+**Tasks:**
+- Write Hardhat/Foundry unit tests for `issueCertificate` (authorized-only) and `revokeCertificate` (issuer-only revert case is mandatory), and `getCertificate`.
+- Deploy to Polygon Amoy only after all tests pass; store contract address/ABI for Django.
+- Confirm RPC connectivity via a management command calling `getCertificate` with a dummy key.
+
+**SRS Requirements Addressed:** NFR-1.9, §7.3, §7.4, 2.5
+**Phase Completion Criteria:**
+- All contract unit tests pass locally with no testnet interaction.
+- A passing test specifically asserts non-issuer revocation reverts.
+- Contract deployed and verified on Amoy block explorer; management command confirms RPC connectivity.
+
+---
+
+## Phase 9 – Data Models & ORM
+
+**Goal:** All models from SRS §6 implemented and migrated, matching the field names and shapes already codified in the frontend's TypeScript types from Phase 1.
+
+**Tasks:**
+- Implement `Organization`, `Certificate`, `RevocationLog`, `NotificationLog`, `RefreshToken`, `LoginAttempt`, `BlockchainInteractionLog`, `CacheEntry` per SRS §6.
+- Cross-check every serializer-facing field name against `API_CONTRACT.md`/the frontend TypeScript types before finalizing — a mismatch here (e.g., `certificate_id` vs `certId`) is the single most common source of frontend/backend integration pain and is cheap to catch now.
+- Register models in Django admin (flagged for restriction later, per NFR-1.12).
+- Seed a test organization matching one of Phase 1's frontend fixtures, so early manual testing has continuity with what the UI was built against.
+
+**SRS Requirements Addressed:** 6.1–6.8
+**Phase Completion Criteria:**
+- All tables exist; migrations apply cleanly.
+- A field-by-field diff between the DRF serializers and `API_CONTRACT.md` shows zero mismatches (produce this diff explicitly, don't eyeball it).
+
+---
+
+## Phase 10 – Authentication System (Backend) → Replace Phase 3 Mocks
+
+**Goal:** Real registration, verification, login, refresh, logout, lockout, and password reset — matching Phase 3's UI and Phase 1's contract exactly.
+
+**Tasks:**
+- **Frontend integration first:** point `/api/auth/*` calls at the real backend once each endpoint is implemented; remove the corresponding mock handler; confirm the Phase 3 screens still work unmodified.
+- Configure the database-backed cache (NFR-1.10) before implementing rate limiting; wire `django-ratelimit` to it, not the default in-memory cache.
+- Implement the endpoints per SRS §3.1.3, with binding token lifetimes (15 min access / 7 day refresh), 10-minute code expiry, and the 10-character password minimum (§3.1.5).
+- Implement lockout (5 attempts/account, 20/IP, 15-minute window, 30-minute cooldown) and the documented IP-resolution policy (NFR-1.11).
+- Implement rate limiting per §3.1.4 for all 7 listed endpoints.
+- Email actions log to console for now (real SMTP lands in Phase 15).
+
+**SRS Requirements Addressed:** FR-1.1–1.9, NFR-1.1, NFR-1.3, NFR-1.6, NFR-1.10, NFR-1.11, §3.1.4, §3.1.5
+**Phase Completion Criteria:**
+- Every Phase 3 screen functions identically against the real backend as it did against the mock, with zero component changes required beyond the Phase 6 config flag.
+- Lockout, code expiry, and rate limits per endpoint are each covered by a dedicated, time-mocked test (not manual waiting).
+- `django-ratelimit`'s cache backend is confirmed as the database-backed cache, not the default.
+
+---
+
+## Phase 11 – Certificate PDF & QR Generation → Partially Replaces Phase 5 Mocks
+
+**Goal:** Real PDF/QR generation and server-side validation behind the creation form.
+
+**Tasks:**
+- **Frontend integration first:** point `/api/certificates/` (create) at the real backend; remove that mock handler.
+- Build `CertificateService`: unique Certificate ID generation, HTML→PDF via WeasyPrint (inside Docker), QR code encoding the public verification URL.
+- Implement FR-2.1.1's full server-side validation (the authoritative version of Phase 5's client-side rules) and FR-2.2.1's idempotency handling (the real deduplication behind the header the frontend already sends).
+- Store the record as `PENDING` (blockchain anchoring still pending until Phase 12).
+
+**SRS Requirements Addressed:** FR-2.1, FR-2.1.1, FR-2.1.2, FR-2.2, FR-2.2.1, FR-2.3, FR-5.2, NFR-1.8
+**Phase Completion Criteria:**
+- Phase 5's creation form works against the real backend unmodified.
+- A programmatic PDF-text check confirms required fields are present; a decoded QR resolves to the correct verification URL.
+- Submitting the same `Idempotency-Key` twice (already sent automatically by the Phase 5 frontend) returns the same record — confirm via network tab, no duplicate row created.
+
+---
+
+## Phase 12 – Blockchain Anchoring (Asynchronous Issuance)
+
+**Goal:** Certificates become `VALID` only after on-chain confirmation; the dashboard's `PENDING → VALID` and `FAILED`/retry states (built in Phase 4/5 against mocks) now reflect real transactions.
+
+**Tasks:**
+- Implement the canonical hashing function (§7.2.1) with determinism tests.
+- Implement `BlockchainService` (web3.py) and the `process_issuance` background task via a single-concurrency `django-q2` cluster.
+- Implement the `/retry/` endpoint and the 10-minute stale-PENDING detection (FR-2.9) — this is what Phase 4's already-built "Retry Issuance" button will now actually do something real.
+- Log every attempt to `BlockchainInteractionLog` (FR-2.10).
+
+**SRS Requirements Addressed:** FR-2.4–2.10, §7.5, §7.2.1
+**Phase Completion Criteria:**
+- A certificate created through the (already-built) frontend form transitions `PENDING → VALID` visibly in the (already-built) dashboard within a few seconds, with a real `blockchain_tx_hash` populated.
+- A simulated transaction failure surfaces as `FAILED` with a reason, and the existing "Retry Issuance" button successfully re-submits and reaches `VALID`.
+- A certificate held `PENDING` past 10 minutes is retry-eligible and shown as such by the existing UI affordance.
+
+---
+
+## Phase 13 – Certificate Management Dashboard (Backend) → Replace Phase 4 Mocks
+
+**Goal:** Real list/search/detail/revoke endpoints, organization-scoped, behind the already-built Phase 4 dashboard.
+
+**Tasks:**
+- **Frontend integration first:** point `/api/certificates/`, `/api/certificates/:id/`, and `/api/certificates/:id/revoke/` at the real backend; remove those mocks.
+- Implement organization-scoping at the data-access level (NFR-1.5) — critical, since the frontend has no way to enforce this itself.
+- Implement the daily expiration job (FR-4.2.1).
+- Implement real revocation via `process_revocation`, surfacing contract reverts as a failed revocation rather than a silent success.
+
+**SRS Requirements Addressed:** FR-3.1–3.5, FR-4.1–4.4, NFR-1.5, NFR-2.2
+**Phase Completion Criteria:**
+- Phase 4's dashboard and detail views work unmodified against the real backend.
+- Cross-organization access test: a second organization cannot see or act on the first's certificates via the API, independent of the UI.
+- Revoking through the already-built modal actually flips the on-chain `revoked` flag, confirmed via `getCertificate`.
+- The expiration management command correctly transitions a past-due fixture certificate to `EXPIRED`, visible in the existing dashboard without a UI change.
+
+---
+
+## Phase 14 – Public Verification Portal (Backend) → Replace Phase 2 Mocks
+
+**Goal:** Real verification logic, caching, and rate limiting behind the already-built Phase 2 public page.
+
+**Tasks:**
+- **Frontend integration first:** point `/api/public/verify/:certId/` at the real backend; remove that mock.
+- Implement the verification flow per §7.6, resolving all five outcomes the Phase 2 UI already knows how to render.
+- Implement the database-backed cache for `certHash`/`issuedAt` (indefinite) and `revoked` (60s, explicitly invalidated on revocation confirmation from Phase 13).
+- Enforce GET-only (NFR-1.4) and the 30 req/min rate limit (FR-5.8) using the same IP-resolution policy as Phase 10.
+
+**SRS Requirements Addressed:** FR-5.1, FR-5.3–5.9, §7.6, NFR-2.1, NFR-1.4, NFR-1.10
+**Phase Completion Criteria:**
+- Phase 2's verification page and QR-landing route work unmodified against the real backend, including correctly rendering a genuinely tampered certificate (manually edit a DB field and recompute) as `TAMPERED`.
+- A load test of 10 concurrent requests against a warmed cache meets the 3-second/95th-percentile bound (NFR-2.1).
+- Non-GET requests return 405; the 31st request in a minute from one IP returns 429.
+
+---
+
+## Phase 15 – Email Notifications & Logging
+
+**Goal:** Real emails on issuance confirmation and auth actions, replacing Phase 10's console logging.
+
+**Tasks:**
+- Configure SMTP/SendGrid via env vars.
+- Send the recipient email with PDF attachment only after `VALID` (FR-6.1/6.2); log to `NotificationLog`; implement manual resend.
+- Switch auth emails (verification, reset) from console logging to real SMTP.
+
+**SRS Requirements Addressed:** FR-6.1–6.3
+**Phase Completion Criteria:**
+- A certificate reaching `VALID` (via the already-built full flow) triggers a captured test email with the PDF attached and a working verification link.
+- A simulated SMTP failure logs `Failed` and the resend action recovers it.
+
+---
+
+## Phase 16 – Security Hardening, Config, CI & Final Polish
+
+**Goal:** Close out remaining NFRs and prepare for submission.
+
+**Tasks:**
+- Confirm `DEBUG=False`, HTTPS enforcement, `Secure` cookies in production settings.
+- Restrict Django admin (NFR-1.12).
+- OWASP-style pass: CSRF, XSS, SQL injection, CORS (only the frontend origin).
+- Wire the full backend + any frontend tests into one documented command with a coverage report.
+- Full end-to-end pass: run through every frontend screen one more time against the fully real backend, confirming no mock artifacts (unused handlers, leftover placeholder text like "Coming soon") remain anywhere.
+- Write the README (Docker-first setup, contract deployment, test command).
+- Grep-based check for hard-coded secrets; confirm canonical hashing is defined in exactly one place.
+
+**SRS Requirements Addressed:** NFR-1.1–1.12, NFR-5.1, NFR-5.2, NFR-6.1
+**Phase Completion Criteria:**
+- `/admin/` is gated per the documented posture.
+- Full test suite (backend, and frontend if tests were added) passes via one documented command with a coverage report.
+- A manual end-to-end walkthrough script (register → verify → login → create certificate → wait for VALID → view in dashboard → revoke → verify publicly as REVOKED) completes with no leftover mock/placeholder content visible.
+- README allows a fresh clone to be running within a self-timed, recorded bound.
+- No secrets in version control, confirmed via the automated check.
+
+---
+
+## Phase 17 – (Optional Stretch Goals)
+
+- IPFS storage for certificate PDFs.
+- Multi-organization branding.
+- Bulk CSV issuance.
+- Offline-first verification PWA.
+
+---
+
+*End of Implementation Plan*
