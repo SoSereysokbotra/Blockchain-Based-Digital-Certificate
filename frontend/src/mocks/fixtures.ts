@@ -1,4 +1,4 @@
-import type { CertificateDetail, VerificationResult } from '../api/types';
+import type { CertificateDetail, VerificationResult, CertificateStatus } from '../api/types';
 
 export const mockCertificates: CertificateDetail[] = [
   {
@@ -55,7 +55,29 @@ export const mockCertificates: CertificateDetail[] = [
     status: 'FAILED',
     blockchain_tx_hash: null,
     pdf_url: 'https://example.com/certs/cert-5-failed.pdf'
-  }
+  },
+  {
+    certificate_id: 'cert-stale-pending',
+    recipient_name: 'Frank Ocean',
+    recipient_email: 'frank@example.com',
+    course_title: 'Music Production 101',
+    issue_date: '2023-01-01',
+    expiry_date: null,
+    status: 'PENDING',
+    blockchain_tx_hash: null,
+    pdf_url: 'https://example.com/certs/cert-stale-pending.pdf'
+  },
+  ...Array.from({ length: 25 }).map((_, i) => ({
+    certificate_id: `cert-gen-${i + 10}`,
+    recipient_name: `Student ${i + 10}`,
+    recipient_email: `student${i + 10}@example.com`,
+    course_title: i % 2 === 0 ? 'Blockchain Fundamentals' : 'Advanced Cryptography',
+    issue_date: '2023-11-01',
+    expiry_date: null,
+    status: (i % 3 === 0 ? 'PENDING' : 'VALID') as CertificateStatus,
+    blockchain_tx_hash: i % 3 === 0 ? null : `0xhash${i}`,
+    pdf_url: `https://example.com/certs/cert-gen-${i + 10}.pdf`
+  }))
 ];
 
 export const mockVerificationResults: Record<string, VerificationResult> = {

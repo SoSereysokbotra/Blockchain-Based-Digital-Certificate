@@ -80,6 +80,7 @@ export const handlers = [
     const url = new URL(request.url);
     const page = Number(url.searchParams.get('page') || '1');
     const search = url.searchParams.get('search') || '';
+    const status = url.searchParams.get('status') || '';
 
     let filtered = mockCertificates;
     if (search) {
@@ -89,8 +90,12 @@ export const handlers = [
         cert.certificate_id.toLowerCase().includes(lowerSearch)
       );
     }
+    
+    if (status) {
+      filtered = filtered.filter(cert => cert.status === status);
+    }
 
-    const pageSize = 25;
+    const pageSize = 10; // Reduced to 10 for easier pagination testing with 30 items
     const startIndex = (page - 1) * pageSize;
     const paginated = filtered.slice(startIndex, startIndex + pageSize);
 

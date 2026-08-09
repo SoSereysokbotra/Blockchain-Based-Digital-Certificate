@@ -8,6 +8,8 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { CertificateDetailPage } from './pages/CertificateDetailPage';
 
 // Placeholder Components
 const Placeholder = ({ title }: { title: string }) => (
@@ -37,9 +39,9 @@ function App() {
           {/* Authenticated Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AuthLayout />}>
-              <Route path="/dashboard" element={<Placeholder title="Dashboard" />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/certificates/new" element={<Placeholder title="Issue Certificate" />} />
-              <Route path="/certificates/:id" element={<Placeholder title="Certificate Detail" />} />
+              <Route path="/certificates/:id" element={<CertificateDetailPage />} />
             </Route>
           </Route>
           
