@@ -1,0 +1,13 @@
+# Node modules
+node_modules/
+
+# Hardhat artifacts and cache
+artifacts/
+cache/
+
+# Environment
+.env
+.env.local
+
+# Coverage
+coverage/
