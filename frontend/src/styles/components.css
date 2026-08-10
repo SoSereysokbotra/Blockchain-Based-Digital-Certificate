@@ -851,3 +851,160 @@
   text-decoration: underline;
   color: var(--color-primary-700);
 }
+
+/* Issue Certificate Page Styles */
+.issue-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.issue-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.issue-title {
+  font-size: var(--font-size-2xl);
+  color: var(--color-primary-900);
+}
+
+.issue-card {
+  padding: var(--spacing-8);
+}
+
+.issue-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.issue-date-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-4);
+}
+
+.issue-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-6);
+  padding-top: var(--spacing-6);
+  border-top: 1px solid var(--color-neutral-200);
+}
+
+/* Revocation Modal Styles */
+.revoke-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.revoke-warning {
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: var(--color-danger-50);
+  border: 1px solid var(--color-danger-200);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-900);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.revoke-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.revoke-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}
+
+.revoke-confirm-btn {
+  background-color: var(--color-danger-600);
+  border-color: var(--color-danger-600);
+}
+
+.revoke-confirm-btn:hover {
+  background-color: var(--color-danger-700);
+  border-color: var(--color-danger-700);
+}
+
+.revoke-button {
+  color: var(--color-danger-600);
+  border-color: var(--color-danger-300);
+}
+
+.revoke-button:hover {
+  background-color: var(--color-danger-50);
+  border-color: var(--color-danger-400);
+}
+
+/* Toast Styles */
+.toast-container {
+  position: fixed;
+  bottom: var(--spacing-6);
+  right: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  z-index: 1000;
+  max-width: 400px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-success {
+  background-color: var(--color-success-50);
+  border: 1px solid var(--color-success-200);
+  color: var(--color-success-900);
+}
+
+.toast-error {
+  background-color: var(--color-danger-50);
+  border: 1px solid var(--color-danger-200);
+  color: var(--color-danger-900);
+}
+
+.toast-warning {
+  background-color: var(--color-warning-50);
+  border: 1px solid var(--color-warning-200);
+  color: var(--color-warning-900);
+}
+
+.toast-info {
+  background-color: var(--color-primary-50);
+  border: 1px solid var(--color-primary-200);
+  color: var(--color-primary-900);
+}
+
+.toast-message {
+  flex: 1;
+}
