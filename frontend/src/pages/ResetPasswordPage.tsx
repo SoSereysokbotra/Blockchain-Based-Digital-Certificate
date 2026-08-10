@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { FormStepper } from '../components/ui/FormStepper';
-import { API_BASE_URL } from '../api/config';
+import api from '../api/client';
+import { useToast } from '../context/ToastContext';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
 
 export const ResetPasswordPage: React.FC = () => {
   const [step, setStep] = useState(0);
   const steps = ['Email', 'Verify Code', 'New Password'];
+  const navigate = useNavigate();
+  const { addToast } = useToast();
 
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -25,13 +28,7 @@ export const ResetPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/password-reset/request/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!res.ok) throw new Error('Failed to request reset code');
+      await api.post('/auth/password-reset/request/', { email });
       setStep(1);
     } catch {
       setError('An error occurred. Please try again.');
@@ -46,20 +43,10 @@ export const ResetPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/password-reset/verify/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, reset_code: code }),
-      });
-
-      if (!res.ok) throw new Error('Invalid or expired code');
+      await api.post('/auth/password-reset/verify/', { email, reset_code: code });
       setStep(2);
-    } catch (err) {
-      if (err instanceof Error) {
-          setError(err.message);
-      } else {
-          setError('An error occurred. Please try again.');
-      }
+    } catch (err: any) {
+      setError('Invalid or expired code');
     } finally {
       setIsLoading(false);
     }
@@ -81,16 +68,15 @@ export const ResetPasswordPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/password-reset/confirm/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, reset_code: code, new_password: password }),
-      });
-
-      if (!res.ok) throw new Error('Failed to reset password');
-      setStep(3); // Success state
-    } catch {
-      setError('An error occurred. Please try again.');
+      await api.post('/auth/password-reset/confirm/', { email, reset_code: code, new_password: password });
+      addToast('success', 'Password reset successfully. You can now log in.');
+      navigate('/login');
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        setError('Invalid code or password does not meet criteria.');
+      } else {
+        setError('An error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

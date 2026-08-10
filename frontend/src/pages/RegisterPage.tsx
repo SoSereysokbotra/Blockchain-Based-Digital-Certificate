@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { API_BASE_URL } from '../api/config';
+import api from '../api/client';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
@@ -33,28 +33,20 @@ export const RegisterPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/register/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      if (res.status === 400) {
-        const data = await res.json();
+      await api.post('/auth/register/', { name, email, password });
+      setIsSuccess(true);
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        const data = error.response.data;
         const fieldErrors: Record<string, string> = {};
         for (const [key, val] of Object.entries(data)) {
-          if (Array.isArray(val)) fieldErrors[key] = val[0];
+          if (Array.isArray(val)) fieldErrors[key] = (val as string[])[0];
           else if (typeof val === 'string') fieldErrors[key] = val;
         }
         setErrors(fieldErrors);
-        return;
+      } else {
+        setGeneralError('An unexpected error occurred. Please try again.');
       }
-
-      if (!res.ok) throw new Error('Registration failed');
-
-      setIsSuccess(true);
-    } catch {
-      setGeneralError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

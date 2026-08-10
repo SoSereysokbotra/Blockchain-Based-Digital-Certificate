@@ -4,12 +4,8 @@ import './index.css'
 import App from './App.tsx'
 
 async function enableMocking() {
-  if (!import.meta.env.DEV || import.meta.env.VITE_USE_MOCK !== 'true') {
-    return
-  }
- 
-  const { worker } = await import('./mocks/browser')
-  return worker.start({ onUnhandledRequest: 'bypass' })
+  // Always return immediately to disable MSW and hit real backend
+  return;
 }
 
 enableMocking().then(() => {

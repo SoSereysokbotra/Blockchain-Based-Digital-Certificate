@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { StatusPill } from '../components/ui/StatusPill';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../context/ToastContext';
-import { API_BASE_URL } from '../api/config';
+import api from '../api/client';
 import { ArrowLeft, ExternalLink, RefreshCw, AlertCircle, Ban } from 'lucide-react';
 import type { CertificateDetail } from '../api/types';
 
@@ -28,14 +28,14 @@ export const CertificateDetailPage: React.FC = () => {
   useEffect(() => {
     const fetchCert = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/certificates/${id}/`);
-        if (res.status === 404) throw new Error('Certificate not found');
-        if (!res.ok) throw new Error('Failed to fetch certificate');
-        
-        const data = await res.json() as CertificateDetail;
-        setCert(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        const res = await api.get<CertificateDetail>(`/certificates/${id}/`);
+        setCert(res.data);
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          setError('Certificate not found');
+        } else {
+          setError('Failed to load certificate');
+        }
       } finally {
         setLoading(false);
       }
@@ -48,11 +48,9 @@ export const CertificateDetailPage: React.FC = () => {
     if (!cert) return;
     setIsRetrying(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/certificates/${cert.certificate_id}/retry/`, { method: 'POST' });
-      if (res.ok) {
-        setCert({ ...cert, status: 'PENDING' });
-        addToast('info', 'Retry started — confirming on-chain…');
-      }
+      await api.post(`/certificates/${cert.certificate_id}/retry/`);
+      setCert({ ...cert, status: 'PENDING' });
+      addToast('info', 'Retry started — confirming on-chain…');
     } catch {
       addToast('error', 'Failed to retry issuance.');
     } finally {
@@ -70,20 +68,11 @@ export const CertificateDetailPage: React.FC = () => {
 
     setIsRevoking(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/certificates/${cert.certificate_id}/revoke/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: revokeReason })
-      });
-
-      if (res.ok) {
-        setCert({ ...cert, status: 'REVOKED' });
-        addToast('success', 'Certificate revoked successfully.');
-        setRevokeModalOpen(false);
-        setRevokeReason('');
-      } else {
-        addToast('error', 'Failed to revoke certificate.');
-      }
+      await api.post(`/certificates/${cert.certificate_id}/revoke/`, { reason: revokeReason });
+      setCert({ ...cert, status: 'REVOKED' });
+      addToast('success', 'Certificate revoked successfully.');
+      setRevokeModalOpen(false);
+      setRevokeReason('');
     } catch {
       addToast('error', 'Failed to revoke certificate.');
     } finally {

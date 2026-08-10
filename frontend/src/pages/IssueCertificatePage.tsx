@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { useToast } from '../context/ToastContext';
-import { API_BASE_URL } from '../api/config';
+import api from '../api/client';
 import { ArrowLeft } from 'lucide-react';
 
 // FR-2.1.1 validation helpers
@@ -118,23 +118,23 @@ export const IssueCertificatePage: React.FC = () => {
         body.expiry_date = formData.expiry_date;
       }
 
-      const res = await fetch(`${API_BASE_URL}/certificates/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Key': idempotencyKey
-        },
-        body: JSON.stringify(body)
+      await api.post('/certificates/', body, {
+        headers: { 'Idempotency-Key': idempotencyKey }
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to create certificate');
-      }
 
       addToast('success', 'Certificate created — confirming on-chain…');
       navigate('/dashboard');
-    } catch {
-      addToast('error', 'Failed to issue certificate. Please try again.');
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        const data = error.response.data;
+        const fieldErrors: FormErrors = {};
+        for (const [key, val] of Object.entries(data)) {
+          if (Array.isArray(val)) fieldErrors[key as keyof FormErrors] = (val as string[])[0];
+        }
+        setErrors(fieldErrors);
+      } else {
+        addToast('error', 'Failed to issue certificate. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }

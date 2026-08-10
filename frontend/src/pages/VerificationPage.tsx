@@ -5,12 +5,14 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { StatusPill } from '../components/ui/StatusPill';
 import { Search, ExternalLink, AlertTriangle } from 'lucide-react';
-import { API_BASE_URL } from '../api/config';
+import { useToast } from '../context/ToastContext';
+import api from '../api/client';
 import type { VerificationResult } from '../api/types';
 
 export const VerificationPage: React.FC = () => {
   const { certId } = useParams<{ certId: string }>();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   
   const [searchInput, setSearchInput] = useState(certId || '');
   const [loading, setLoading] = useState(false);
@@ -34,27 +36,22 @@ export const VerificationPage: React.FC = () => {
     setResult(null);
     
     try {
-      const res = await fetch(`${API_BASE_URL}/public/verify/${encodeURIComponent(idToSearch)}/`);
+      const res = await api.get<VerificationResult>(`/public/verify/${encodeURIComponent(idToSearch.trim())}/`);
+      setResult(res.data);
       
-      if (res.status === 404) {
+      if (res.data.status === 'VALID') {
+        addToast('success', 'Certificate is valid and verified on-chain.');
+      } else {
+        addToast('error', `Certificate status is ${res.data.status}.`);
+      }
+    } catch (err: any) {
+      if (err.response?.status === 404) {
         setError('Certificate not found. Please check the ID and try again.');
-        return;
-      }
-      
-      if (res.status === 429) {
+      } else if (err.response?.status === 429) {
         setError('Too many requests. Please try again later.');
-        return;
+      } else {
+        setError('An unexpected error occurred during verification.');
       }
-
-      if (!res.ok) {
-        throw new Error('Failed to verify certificate');
-      }
-
-      const data = await res.json() as VerificationResult;
-      setResult(data);
-    } catch (err) {
-      console.error(err);
-      setError('An unexpected error occurred during verification.');
     } finally {
       setLoading(false);
     }

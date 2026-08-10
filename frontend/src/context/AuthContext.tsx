@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { API_BASE_URL } from '../api/config';
+import api, { setToken } from '../api/client';
 import type { LoginResponse } from '../api/types';
 
 interface AuthContextType {
@@ -27,30 +27,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // sends/receives HttpOnly cookie
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (res.status === 423) {
+      const res = await api.post<LoginResponse>('/auth/login/', { email, password });
+      
+      const { access_token } = res.data;
+      setToken(access_token);
+      setAccessToken(access_token);
+      return { success: true };
+    } catch (error: any) {
+      if (error.response?.status === 423) {
         return { success: false, error: 'Account locked. Please try again in 30 minutes.', status: 423 };
       }
-
-      if (res.status === 401) {
+      if (error.response?.status === 401) {
         return { success: false, error: 'Invalid credentials.', status: 401 };
       }
-
-      if (!res.ok) {
-        return { success: false, error: 'An unexpected error occurred.' };
-      }
-
-      const data = (await res.json()) as LoginResponse;
-      setAccessToken(data.access_token);
-      return { success: true };
-    } catch {
-      return { success: false, error: 'Network error. Please try again.' };
+      return { success: false, error: 'An unexpected error occurred.' };
     } finally {
       setIsLoading(false);
     }
@@ -58,31 +48,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = useCallback(async () => {
     try {
-      await fetch(`${API_BASE_URL}/auth/logout/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      });
+      await api.post('/auth/logout/');
     } catch {
       // Logout should always clear local state even if the API call fails
     }
+    setToken(null);
     setAccessToken(null);
-  }, [accessToken]);
+  }, []);
 
   const refreshToken = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/refresh-token/`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        setAccessToken(null);
-        return false;
-      }
-      const data = (await res.json()) as LoginResponse;
-      setAccessToken(data.access_token);
+      const res = await api.post<LoginResponse>('/auth/refresh-token/');
+      setToken(res.data.access_token);
+      setAccessToken(res.data.access_token);
       return true;
     } catch {
+      setToken(null);
       setAccessToken(null);
       return false;
     }

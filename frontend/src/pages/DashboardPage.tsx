@@ -5,7 +5,7 @@ import { Table } from '../components/ui/Table';
 import { StatusPill } from '../components/ui/StatusPill';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { API_BASE_URL } from '../api/config';
+import api from '../api/client';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CertificateDetail } from '../api/types';
 
@@ -36,13 +36,10 @@ export const DashboardPage: React.FC = () => {
       if (search) query.set('search', search);
       if (statusFilter) query.set('status', statusFilter);
 
-      const res = await fetch(`${API_BASE_URL}/certificates/?${query.toString()}`);
-      if (!res.ok) throw new Error('Failed to fetch certificates');
-      
-      const data = (await res.json()) as PaginatedResponse;
-      setCertificates(data.results);
-      setHasNext(!!data.next);
-      setHasPrev(!!data.previous);
+      const res = await api.get<PaginatedResponse>(`/certificates/?${query.toString()}`);
+      setCertificates(res.data.results);
+      setHasNext(!!res.data.next);
+      setHasPrev(!!res.data.previous);
     } catch (err) {
       console.error(err);
     } finally {

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
-import { API_BASE_URL } from '../api/config';
+import api from '../api/client';
+import { useToast } from '../context/ToastContext';
 import { CheckCircle, XCircle } from 'lucide-react';
 
 export const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { addToast } = useToast();
   const token = searchParams.get('token');
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -18,24 +21,17 @@ export const VerifyEmailPage: React.FC = () => {
 
     const verify = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/auth/verify-email/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
-        });
-
-        if (res.ok) {
-          setStatus('success');
-        } else {
-          setStatus('error');
-        }
+        await api.post('/auth/verify-email/', { token });
+        setStatus('success');
+        addToast('success', 'Email verified successfully! You can now log in.');
+        navigate('/login');
       } catch {
         setStatus('error');
       }
     };
 
     verify();
-  }, [token]);
+  }, [token, navigate, addToast]);
 
   return (
     <div className="auth-page">
