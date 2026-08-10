@@ -21,6 +21,8 @@
   --color-warning: #f59e0b; /* Amber */
   --color-warning-bg: #fef3c7;
   --color-danger: #ef4444; /* Red */
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
   --color-danger-bg: #fee2e2;
   --color-info: #3b82f6; /* Blue */
   --color-info-bg: #eff6ff;

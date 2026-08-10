@@ -42,7 +42,7 @@
   color: white;
 }
 .btn-danger:hover:not(:disabled) {
-  background-color: #dc2626; /* Slightly darker red */
+  background-color: var(--color-danger-600); /* Slightly darker red */
 }
 
 /* Input */
@@ -1007,4 +1007,60 @@
 
 .toast-message {
   flex: 1;
+}
+
+/* Responsive Styles for Mobile (< 640px) */
+@media (max-width: 639px) {
+  /* Verification Page */
+  .verification-result-header {
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+  
+  .verification-warning {
+    flex-direction: column;
+  }
+  
+  /* Dashboard Page */
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-4);
+  }
+  
+  .dashboard-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .dashboard-search {
+    min-width: unset;
+  }
+  
+  /* Certificate Detail Page */
+  .detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-4);
+  }
+  
+  .detail-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .detail-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+  }
+  
+  /* Issue Certificate Page */
+  .issue-date-row {
+    grid-template-columns: 1fr;
+  }
 }
