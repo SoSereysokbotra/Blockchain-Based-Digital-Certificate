@@ -29,8 +29,26 @@ services:
       - DB_PORT=5432
       - DEBUG=1
       - SECRET_KEY=django-insecure-development-key-for-phase-7
+      - db
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python manage.py qcluster
+    volumes:
+      - ./backend:/app
+    environment:
+      - DB_HOST=db
+      - DB_NAME=${DB_NAME:-bcip}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_PORT=5432
+      - DEBUG=1
+      - SECRET_KEY=django-insecure-development-key-for-phase-7
     depends_on:
       - db
+      - backend
 
 volumes:
   postgres_data:

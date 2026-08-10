@@ -75,9 +75,9 @@ class CertificateListCreateView(APIView):
         )
         cert.save()
 
-        # TODO Phase 10: enqueue async issuance task (PDF gen + blockchain tx)
-        # from django_q.tasks import async_task
-        # async_task('certificates.tasks.issue_certificate', cert.certificate_id)
+        # Enqueue async issuance task (PDF gen + blockchain tx)
+        from django_q.tasks import async_task
+        async_task('certificates.tasks.issue_certificate', cert.certificate_id)
 
         return Response(
             {
@@ -128,9 +128,9 @@ class CertificateRevokeView(APIView):
             revoked_by=request.user,
         )
 
-        # TODO Phase 10: enqueue async blockchain revocation task
-        # from django_q.tasks import async_task
-        # async_task('certificates.tasks.revoke_on_chain', cert.certificate_id)
+        # Enqueue async blockchain revocation task
+        from django_q.tasks import async_task
+        async_task('certificates.tasks.revoke_on_chain', cert.certificate_id)
 
         return Response({'detail': 'Revocation initiated.'}, status=status.HTTP_202_ACCEPTED)
 
@@ -150,9 +150,9 @@ class CertificateRetryView(APIView):
         cert.status = CertificateStatus.PENDING
         cert.save(update_fields=['status', 'updated_at'])
 
-        # TODO Phase 10: enqueue async issuance task again
-        # from django_q.tasks import async_task
-        # async_task('certificates.tasks.issue_certificate', cert.certificate_id)
+        # Enqueue async issuance task again
+        from django_q.tasks import async_task
+        async_task('certificates.tasks.issue_certificate', cert.certificate_id)
 
         return Response({'detail': 'Retry initiated.'}, status=status.HTTP_202_ACCEPTED)
 

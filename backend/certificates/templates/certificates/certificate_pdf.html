@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ cert.course_title }}</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        .certificate-container {
+            width: 100%;
+            height: 100vh;
+            padding: 40px;
+            box-sizing: border-box;
+            background: white;
+            border: 20px solid #1e293b;
+            position: relative;
+        }
+        .header {
+            text-align: center;
+            margin-top: 40px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            font-size: 24px;
+            color: #64748b;
+        }
+        .content {
+            text-align: center;
+            margin-top: 60px;
+        }
+        .presented-to {
+            font-size: 18px;
+            color: #475569;
+            margin-bottom: 20px;
+        }
+        .recipient-name {
+            font-size: 42px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #cbd5e1;
+            display: inline-block;
+            padding-bottom: 10px;
+        }
+        .for-completion {
+            font-size: 18px;
+            color: #475569;
+            margin-bottom: 20px;
+        }
+        .course-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        .footer {
+            position: absolute;
+            bottom: 60px;
+            left: 60px;
+            right: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .qr-code {
+            width: 120px;
+            height: 120px;
+        }
+        .qr-caption {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 5px;
+            text-align: center;
+        }
+        .meta-info {
+            text-align: right;
+            font-size: 14px;
+            color: #475569;
+        }
+        .meta-info span {
+            display: block;
+            margin-top: 5px;
+        }
+        .issue-date {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate-container">
+        <div class="header">
+            <div class="title">Certificate of Completion</div>
+            <div class="subtitle">{{ cert.organization.organization_name }}</div>
+        </div>
+
+        <div class="content">
+            <div class="presented-to">This is proudly presented to</div>
+            <div class="recipient-name">{{ cert.recipient_name }}</div>
+            <div class="for-completion">for successfully completing the course</div>
+            <div class="course-title">{{ cert.course_title }}</div>
+        </div>
+
+        <div class="footer">
+            <div>
+                <img class="qr-code" src="{{ qr_data_uri }}" alt="Verification QR Code">
+                <div class="qr-caption">Scan to verify</div>
+            </div>
+            
+            <div class="meta-info">
+                <span>Certificate ID: <strong>{{ cert.certificate_id }}</strong></span>
+                <span class="issue-date">Issued on: {{ cert.issue_date|date:"F j, Y" }}</span>
+                {% if cert.expiry_date %}
+                    <span>Valid until: {{ cert.expiry_date|date:"F j, Y" }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

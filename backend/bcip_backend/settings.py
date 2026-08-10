@@ -167,3 +167,36 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
 ]
+
+# ─── Media Files (PDFs) ──────────────────────────────────────────────────────
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ─── Email ───────────────────────────────────────────────────────────────────
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@bcip.dev')
+
+# ─── Frontend / Public URL ───────────────────────────────────────────────────
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+
+# ─── Blockchain ──────────────────────────────────────────────────────────────
+BLOCKCHAIN_RPC_URL = os.getenv('BLOCKCHAIN_RPC_URL', '')
+BLOCKCHAIN_CONTRACT_ADDRESS = os.getenv('BLOCKCHAIN_CONTRACT_ADDRESS', '')
+BLOCKCHAIN_ISSUER_PRIVATE_KEY = os.getenv('BLOCKCHAIN_ISSUER_PRIVATE_KEY', '')
+
+# ─── Django Q2 (Async Tasks) ─────────────────────────────────────────────────
+Q_CLUSTER = {
+    'name': 'bcip',
+    'workers': 2,
+    'recycle': 500,
+    'timeout': 120,
+    'retry': 180,
+    'queue_limit': 50,
+    'bulk': 10,
+    'orm': 'default',
+}
