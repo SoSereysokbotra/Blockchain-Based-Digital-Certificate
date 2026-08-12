@@ -98,12 +98,13 @@ export const VerificationPage: React.FC = () => {
             <StatusPill status={result.status} />
           </div>
 
-          {(result.status === 'TAMPERED' || result.status === 'REVOKED') && (
+          {(result.status === 'TAMPERED' || result.status === 'REVOKED' || result.status === 'UNVERIFIED') && (
             <div className="verification-warning">
               <AlertTriangle size={24} />
               <div>
-                <strong>Warning: This certificate is not valid.</strong>
+                <strong>Warning: {result.warning || 'This certificate is not valid.'}</strong>
                 {result.revocation_reason && <p style={{ margin: 'var(--spacing-1) 0 0 0' }}>Reason: {result.revocation_reason}</p>}
+                {result.detail && <p style={{ margin: 'var(--spacing-1) 0 0 0' }}>Detail: {result.detail}</p>}
               </div>
             </div>
           )}

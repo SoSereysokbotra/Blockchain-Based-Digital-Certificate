@@ -138,9 +138,15 @@ This document defines the strict API contract between the BCIP frontend and back
 - **Request Body**: None
 - **Response (202 Accepted)**: Indicates retry process started.
 
+### 14. Resend Notification
+- **POST** `/api/certificates/:id/resend-notification/`
+- **Request Body**: None
+- **Response (202 Accepted)**: Indicates resend requested.
+- **Response (409 Conflict)**: Cannot send notification if not VALID.
+
 ## Public Endpoints
 
-### 14. Verify Certificate
+### 15. Verify Certificate
 - **GET** `/api/public/verify/:cert_id/`
 - **Response (200 OK)**:
   ```json

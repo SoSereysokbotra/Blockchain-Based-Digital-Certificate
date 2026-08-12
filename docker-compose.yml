@@ -1,4 +1,15 @@
-version: '3.8'
+# BCIP development stack.
+#
+# Docker is mandatory for this project (Implementation Plan, Phase 0): WeasyPrint
+# depends on Pango/Cairo/GDK-Pixbuf, which are unreliable to install by hand on
+# Windows and macOS. Everything below runs without any host-level system
+# packages beyond Docker itself.
+#
+#   docker compose up --build
+#
+# The `worker` service runs the django-q2 cluster. It is deliberately configured
+# for single-worker concurrency (see Q_CLUSTER in settings.py) so that all
+# on-chain writes serialise through one process and cannot collide on nonce.
 
 services:
   db:
@@ -11,25 +22,32 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-bcip}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: python manage.py runserver 0.0.0.0:8000
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py createcachetable &&
+             python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
+      - media_data:/app/media
     ports:
       - "8000:8000"
-    environment:
-      - DB_HOST=db
-      - DB_NAME=${DB_NAME:-bcip}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_PORT=5432
-      - DEBUG=1
-      - SECRET_KEY=django-insecure-development-key-for-phase-7
-      - db
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment: []
+    depends_on:
+      db:
+        condition: service_healthy
 
   worker:
     build:
@@ -38,17 +56,17 @@ services:
     command: python manage.py qcluster
     volumes:
       - ./backend:/app
-    environment:
-      - DB_HOST=db
-      - DB_NAME=${DB_NAME:-bcip}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_PORT=5432
-      - DEBUG=1
-      - SECRET_KEY=django-insecure-development-key-for-phase-7
+      - media_data:/app/media
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment: []
     depends_on:
-      - db
-      - backend
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
 
 volumes:
   postgres_data:
+  media_data:

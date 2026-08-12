@@ -1,29 +1,29 @@
 """
-URL configuration for bcip_backend project.
+Root URL configuration.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+/admin/ is mounted only when ENABLE_ADMIN is truthy (NFR-1.12). Django's admin
+already requires is_staff, but the admin login form is itself an attack surface
+and a credential-stuffing target, so the safe default is for the route not to
+exist at all on a deployment.
 """
-from django.contrib import admin
-from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.urls import include, path
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('api/', include('accounts.urls')),
     path('api/', include('certificates.urls')),
 ]
 
+if settings.ENABLE_ADMIN:
+    from django.contrib import admin
+
+    admin.site.site_header = 'BCIP Administration'
+    admin.site.site_title = 'BCIP'
+    admin.site.index_title = 'Operational data'
+    urlpatterns.append(path('admin/', admin.site.urls))
+
 if settings.DEBUG:
+    # In production the PDFs are served by the web server or object store, not
+    # by Django.
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

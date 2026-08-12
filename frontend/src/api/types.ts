@@ -1,5 +1,5 @@
 export type CertificateStatus = 'PENDING' | 'VALID' | 'EXPIRED' | 'REVOKED' | 'FAILED';
-export type VerificationOutcome = 'VALID' | 'EXPIRED' | 'REVOKED' | 'TAMPERED' | 'NOT_FOUND';
+export type VerificationOutcome = 'VALID' | 'EXPIRED' | 'REVOKED' | 'TAMPERED' | 'NOT_FOUND' | 'UNVERIFIED';
 
 export interface LoginResponse {
   access_token: string;
@@ -62,4 +62,6 @@ export interface VerificationResult {
   status: VerificationOutcome;
   blockchain_tx_hash: string | null;
   revocation_reason: string | null;
+  warning?: string;
+  detail?: string;
 }

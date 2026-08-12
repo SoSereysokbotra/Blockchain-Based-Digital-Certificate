@@ -1,134 +1,206 @@
-<!DOCTYPE html>
+{% comment %}
+Certificate PDF template (FR-2.3).
+
+Rendered by WeasyPrint, which supports only part of CSS flexbox and no
+viewport units, so this uses absolute positioning against a fixed A4 landscape
+page instead. Every value the Phase 4 test extracts with pdfplumber —
+recipient name, course title, issue date, certificate ID — is real text, not
+an image, so it stays machine-checkable.
+{% endcomment %}<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>{{ cert.course_title }}</title>
-    <style>
-        @page {
-            size: A4 landscape;
-            margin: 0;
-        }
-        body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f8fafc;
-            color: #0f172a;
-        }
-        .certificate-container {
-            width: 100%;
-            height: 100vh;
-            padding: 40px;
-            box-sizing: border-box;
-            background: white;
-            border: 20px solid #1e293b;
-            position: relative;
-        }
-        .header {
-            text-align: center;
-            margin-top: 40px;
-        }
-        .title {
-            font-size: 48px;
-            font-weight: bold;
-            color: #0f172a;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            margin-bottom: 10px;
-        }
-        .subtitle {
-            font-size: 24px;
-            color: #64748b;
-        }
-        .content {
-            text-align: center;
-            margin-top: 60px;
-        }
-        .presented-to {
-            font-size: 18px;
-            color: #475569;
-            margin-bottom: 20px;
-        }
-        .recipient-name {
-            font-size: 42px;
-            font-weight: bold;
-            color: #2563eb;
-            margin-bottom: 40px;
-            border-bottom: 2px solid #cbd5e1;
-            display: inline-block;
-            padding-bottom: 10px;
-        }
-        .for-completion {
-            font-size: 18px;
-            color: #475569;
-            margin-bottom: 20px;
-        }
-        .course-title {
-            font-size: 32px;
-            font-weight: bold;
-            color: #0f172a;
-        }
-        .footer {
-            position: absolute;
-            bottom: 60px;
-            left: 60px;
-            right: 60px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-        }
-        .qr-code {
-            width: 120px;
-            height: 120px;
-        }
-        .qr-caption {
-            font-size: 10px;
-            color: #64748b;
-            margin-top: 5px;
-            text-align: center;
-        }
-        .meta-info {
-            text-align: right;
-            font-size: 14px;
-            color: #475569;
-        }
-        .meta-info span {
-            display: block;
-            margin-top: 5px;
-        }
-        .issue-date {
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>{{ cert.certificate_id }} — {{ cert.course_title }}</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      /* DejaVu is installed in the image; naming it explicitly avoids
+         falling back to a font that may not cover non-Latin names. */
+      font-family: "DejaVu Sans", "Liberation Sans", sans-serif;
+      color: #16211f;
+    }
+
+    .sheet {
+      position: relative;
+      width: 297mm;
+      height: 210mm;
+      box-sizing: border-box;
+      padding: 14mm;
+      background: #ffffff;
+    }
+
+    .frame {
+      position: absolute;
+      top: 10mm; right: 10mm; bottom: 10mm; left: 10mm;
+      /* WeasyPrint does not implement outline-offset, so the inner hairline is
+         a second absolutely-positioned box rather than an outline. */
+      border: 2.5mm solid #0e6b60;
+    }
+
+    .frame-inner {
+      position: absolute;
+      top: 14mm; right: 14mm; bottom: 14mm; left: 14mm;
+      border: 0.4mm solid #c9d6d2;
+    }
+
+    .inner {
+      position: absolute;
+      top: 24mm; right: 26mm; left: 26mm;
+      text-align: center;
+    }
+
+    .issuer {
+      font-size: 15pt;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #0e6b60;
+      margin-bottom: 3mm;
+    }
+
+    .title {
+      font-size: 30pt;
+      font-weight: bold;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0 0 2mm;
+    }
+
+    .rule {
+      width: 40mm;
+      height: 0.8mm;
+      background: #8c5c0c;
+      margin: 4mm auto 8mm;
+    }
+
+    .lead {
+      font-size: 11pt;
+      color: #5c6763;
+      margin-bottom: 4mm;
+    }
+
+    .recipient {
+      font-size: 28pt;
+      font-weight: bold;
+      color: #0e6b60;
+      margin-bottom: 6mm;
+      /* Long names must wrap rather than overflow the frame. */
+      word-wrap: break-word;
+    }
+
+    .course {
+      font-size: 17pt;
+      font-weight: bold;
+      margin-top: 2mm;
+      word-wrap: break-word;
+    }
+
+    .footer {
+      position: absolute;
+      left: 26mm;
+      right: 26mm;
+      bottom: 20mm;
+    }
+
+    .qr-cell {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      text-align: center;
+      width: 34mm;
+    }
+
+    .qr-cell img {
+      width: 30mm;
+      height: 30mm;
+      display: block;
+    }
+
+    .qr-caption {
+      font-size: 6.5pt;
+      color: #5c6763;
+      margin-top: 1.5mm;
+    }
+
+    .meta {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      text-align: right;
+      font-size: 9.5pt;
+      color: #37403c;
+      line-height: 1.7;
+    }
+
+    .meta .label {
+      color: #5c6763;
+    }
+
+    .meta .cert-id {
+      font-family: "DejaVu Sans Mono", monospace;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+    }
+
+    .anchor-note {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 9mm;
+      text-align: center;
+      font-size: 7pt;
+      color: #7a8480;
+    }
+  </style>
 </head>
 <body>
-    <div class="certificate-container">
-        <div class="header">
-            <div class="title">Certificate of Completion</div>
-            <div class="subtitle">{{ cert.organization.organization_name }}</div>
-        </div>
+  <div class="sheet">
+    <div class="frame"></div>
+    <div class="frame-inner"></div>
 
-        <div class="content">
-            <div class="presented-to">This is proudly presented to</div>
-            <div class="recipient-name">{{ cert.recipient_name }}</div>
-            <div class="for-completion">for successfully completing the course</div>
-            <div class="course-title">{{ cert.course_title }}</div>
-        </div>
+    <div class="inner">
+      <div class="issuer">{{ organization.name }}</div>
+      <h1 class="title">Certificate of Completion</h1>
+      <div class="rule"></div>
 
-        <div class="footer">
-            <div>
-                <img class="qr-code" src="{{ qr_data_uri }}" alt="Verification QR Code">
-                <div class="qr-caption">Scan to verify</div>
-            </div>
-            
-            <div class="meta-info">
-                <span>Certificate ID: <strong>{{ cert.certificate_id }}</strong></span>
-                <span class="issue-date">Issued on: {{ cert.issue_date|date:"F j, Y" }}</span>
-                {% if cert.expiry_date %}
-                    <span>Valid until: {{ cert.expiry_date|date:"F j, Y" }}</span>
-                {% endif %}
-            </div>
-        </div>
+      <div class="lead">This is to certify that</div>
+      <div class="recipient">{{ cert.recipient_name }}</div>
+      <div class="lead">has successfully completed</div>
+      <div class="course">{{ cert.course_title }}</div>
     </div>
+
+    <div class="footer">
+      <div class="qr-cell">
+        <img src="{{ qr_data_uri }}" alt="Scan to verify this certificate">
+        <div class="qr-caption">Scan to verify</div>
+      </div>
+
+      <div class="meta">
+        <div>
+          <span class="label">Certificate ID:</span>
+          <span class="cert-id">{{ cert.certificate_id }}</span>
+        </div>
+        <div>
+          <span class="label">Issue Date:</span>
+          {{ cert.issue_date|date:"j F Y" }}
+        </div>
+        {% if cert.expiry_date %}
+          <div>
+            <span class="label">Valid Until:</span>
+            {{ cert.expiry_date|date:"j F Y" }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="anchor-note">
+      Anchored on the Polygon blockchain. Verify at {{ verification_url }}
+    </div>
+  </div>
 </body>
 </html>

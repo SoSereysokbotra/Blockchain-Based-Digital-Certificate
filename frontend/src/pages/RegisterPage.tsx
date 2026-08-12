@@ -61,7 +61,7 @@ export const RegisterPage: React.FC = () => {
           <p className="auth-subtitle">
             A verification code has been sent to <strong>{email}</strong>. Please check your email.
           </p>
-          <Button onClick={() => navigate('/verify-email')} style={{ width: '100%', marginTop: 'var(--spacing-6)' }}>
+          <Button onClick={() => navigate('/verify-email', { state: { email } })} style={{ width: '100%', marginTop: 'var(--spacing-6)' }}>
             Verify Email
           </Button>
         </Card>

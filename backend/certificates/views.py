@@ -1,178 +1,216 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.pagination import PageNumberPagination
-from django.shortcuts import get_object_or_404
+"""
+Certificate endpoints.
+
+Organisation scoping (NFR-1.5) is enforced in `get_queryset` on every
+authenticated view, never by trusting a URL parameter. A view that looked a
+certificate up by ID alone would let one organisation read, revoke or retry
+another's records by guessing an identifier.
+"""
+from __future__ import annotations
+
+import logging
+
+from django.conf import settings
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import Certificate, CertificateStatus, RevocationLog
 from .serializers import (
-    CertificateListSerializer,
-    CertificateDetailSerializer,
+    CertificateCreatedSerializer,
     CertificateCreateSerializer,
+    CertificateDetailSerializer,
+    CertificateListSerializer,
     RevocationSerializer,
-    PublicVerifySerializer,
 )
+from .services import CertificateService
+
+logger = logging.getLogger(__name__)
 
 
 class CertificatePagination(PageNumberPagination):
-    page_size = 20
+    page_size = 25  # NFR-2.2
     page_size_query_param = 'page_size'
     max_page_size = 100
 
 
-class CertificateListCreateView(APIView):
+class OrganizationScopedMixin:
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        """List certificates for the authenticated organization with optional search."""
-        search = request.query_params.get('search', '').strip()
-        queryset = Certificate.objects.filter(organization=request.user)
+    def get_queryset(self):
+        """
+        The single choke point for tenant isolation.
 
+        Filtering here rather than in each handler means a new endpoint added
+        later inherits the scoping instead of having to remember it.
+        """
+        return Certificate.objects.filter(
+            organization=self.request.user
+        ).select_related('organization', 'revocation')
+
+    def get_certificate(self, certificate_id):
+        # 404, not 403: confirming that an ID exists but belongs to someone
+        # else is itself a disclosure.
+        return get_object_or_404(self.get_queryset(), certificate_id=certificate_id)
+
+
+class CertificateListCreateView(OrganizationScopedMixin, APIView):
+    """GET: FR-3.1/FR-3.2 list and search. POST: FR-2.1 create."""
+
+    def get(self, request):
+        queryset = self.get_queryset()
+
+        search = request.query_params.get('search', '').strip()
         if search:
             queryset = queryset.filter(
-                Q(recipient_name__icontains=search) |
-                Q(certificate_id__icontains=search) |
-                Q(course_title__icontains=search)
+                Q(recipient_name__icontains=search)
+                | Q(certificate_id__icontains=search)
+                | Q(course_title__icontains=search)
+                | Q(recipient_email__icontains=search)
             )
 
+        status_filter = request.query_params.get('status', '').strip().upper()
+        if status_filter in CertificateStatus.values:
+            queryset = queryset.filter(status=status_filter)
+
         paginator = CertificatePagination()
-        page = paginator.paginate_queryset(queryset, request)
-        serializer = CertificateListSerializer(page, many=True)
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = CertificateListSerializer(
+            page, many=True, context={'request': request}
+        )
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
-        """Create a new certificate (returns 202 PENDING — issuance is async)."""
         serializer = CertificateCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
 
-        # Idempotency-Key handling (FR-2.2.1)
-        idempotency_key = request.headers.get('Idempotency-Key')
-        if idempotency_key:
-            existing = Certificate.objects.filter(idempotency_key=idempotency_key).first()
-            if existing:
-                # Return the same response as the original request
-                return Response(
-                    {
-                        'certificate_id': existing.certificate_id,
-                        'status': existing.status,
-                        'pdf_url': existing.pdf_url,
-                    },
-                    status=status.HTTP_202_ACCEPTED
-                )
-
-        cert = Certificate(
-            organization=request.user,
-            recipient_name=serializer.validated_data['recipient_name'],
-            recipient_email=serializer.validated_data['recipient_email'],
-            course_title=serializer.validated_data['course_title'],
-            issue_date=serializer.validated_data['issue_date'],
-            expiry_date=serializer.validated_data.get('expiry_date'),
-            status=CertificateStatus.PENDING,
-            idempotency_key=idempotency_key or None,
+        service = CertificateService(request.user)
+        certificate, created = service.create(
+            serializer.validated_data,
+            idempotency_key=request.headers.get('Idempotency-Key'),
         )
-        cert.save()
 
-        # Enqueue async issuance task (PDF gen + blockchain tx)
-        from django_q.tasks import async_task
-        async_task('certificates.tasks.issue_certificate', cert.certificate_id)
+        if created:
+            # 202, not 201: the certificate is not usable until the on-chain
+            # anchor confirms (FR-2.7).
+            service.enqueue_issuance(certificate)
 
+        body = CertificateCreatedSerializer(
+            certificate, context={'request': request}
+        ).data
+        return Response(body, status=status.HTTP_202_ACCEPTED)
+
+
+class CertificateDetailView(OrganizationScopedMixin, APIView):
+    """FR-3.3 — full detail including the blockchain reference."""
+
+    def get(self, request, certificate_id):
+        certificate = self.get_certificate(certificate_id)
         return Response(
-            {
-                'certificate_id': cert.certificate_id,
-                'status': cert.status,
-                'pdf_url': cert.pdf_url,
-            },
-            status=status.HTTP_202_ACCEPTED
+            CertificateDetailSerializer(certificate, context={'request': request}).data
         )
 
 
-class CertificateDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+class CertificateRevokeView(OrganizationScopedMixin, APIView):
+    """FR-3.4, FR-3.5 — begin revocation."""
 
-    def get(self, request, pk):
-        cert = get_object_or_404(Certificate, certificate_id=pk, organization=request.user)
-        serializer = CertificateDetailSerializer(cert)
-        return Response(serializer.data)
-
-
-class CertificateRevokeView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk):
-        cert = get_object_or_404(Certificate, certificate_id=pk, organization=request.user)
-
-        if cert.status == CertificateStatus.REVOKED:
-            return Response(
-                {'detail': 'Certificate is already revoked.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if cert.status == CertificateStatus.PENDING:
-            return Response(
-                {'detail': 'Cannot revoke a certificate that is still pending issuance.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    def post(self, request, certificate_id):
+        certificate = self.get_certificate(certificate_id)
 
         serializer = RevocationSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
 
-        cert.status = CertificateStatus.REVOKED
-        cert.save(update_fields=['status', 'updated_at'])
+        if certificate.status == CertificateStatus.REVOKED:
+            return Response(
+                {'detail': 'This certificate is already revoked.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if certificate.status in (CertificateStatus.PENDING, CertificateStatus.FAILED):
+            # Nothing is anchored yet, so there is nothing on-chain to revoke.
+            return Response(
+                {'detail': 'This certificate has not been anchored yet and '
+                           'cannot be revoked. Wait for issuance to complete.'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-        RevocationLog.objects.create(
-            certificate=cert,
-            reason=serializer.validated_data['reason'],
-            revoked_by=request.user,
+        RevocationLog.objects.update_or_create(
+            certificate=certificate,
+            defaults={
+                'revoked_by': request.user,
+                'reason': serializer.validated_data['reason'],
+                'confirmed_on_chain': False,
+                'failure_reason': '',
+            },
         )
 
-        # Enqueue async blockchain revocation task
         from django_q.tasks import async_task
-        async_task('certificates.tasks.revoke_on_chain', cert.certificate_id)
 
-        return Response({'detail': 'Revocation initiated.'}, status=status.HTTP_202_ACCEPTED)
+        async_task('certificates.tasks.process_revocation', certificate.certificate_id)
+
+        return Response(
+            {'detail': 'Revocation submitted. The certificate will show as '
+                       'revoked once the transaction confirms.',
+             'status': certificate.status},
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
-class CertificateRetryView(APIView):
-    permission_classes = [IsAuthenticated]
+class CertificateRetryView(OrganizationScopedMixin, APIView):
+    """FR-2.9 — retry a FAILED or stale-PENDING issuance."""
 
-    def post(self, request, pk):
-        cert = get_object_or_404(Certificate, certificate_id=pk, organization=request.user)
+    def post(self, request, certificate_id):
+        certificate = self.get_certificate(certificate_id)
 
-        if cert.status != CertificateStatus.FAILED:
+        if not certificate.is_retryable:
+            if certificate.status == CertificateStatus.PENDING:
+                detail = (
+                    'This certificate is still being processed. It only becomes '
+                    f'retryable after {settings.STALE_PENDING_MINUTES} minutes.'
+                )
+            else:
+                detail = (
+                    f'Only failed or stalled certificates can be retried '
+                    f'(this one is {certificate.status}).'
+                )
+            return Response({'detail': detail}, status=status.HTTP_409_CONFLICT)
+
+        certificate.status = CertificateStatus.PENDING
+        certificate.failure_reason = ''
+        certificate.save(update_fields=['status', 'failure_reason', 'updated_at'])
+
+        # Regenerate the PDF if the earlier attempt never produced one.
+        if not certificate.pdf_url:
+            CertificateService.attach_pdf(certificate)
+
+        CertificateService.enqueue_issuance(certificate)
+
+        return Response(
+            {'detail': 'Retry submitted.', 'status': certificate.status},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class CertificateResendNotificationView(OrganizationScopedMixin, APIView):
+    """FR-6.3 — manual resend of issuance notification email."""
+
+    def post(self, request, certificate_id):
+        certificate = self.get_certificate(certificate_id)
+
+        if certificate.status != CertificateStatus.VALID:
             return Response(
-                {'detail': 'Only failed certificates can be retried.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'detail': f'Cannot send notification for a {certificate.status} certificate.'},
+                status=status.HTTP_409_CONFLICT,
             )
 
-        cert.status = CertificateStatus.PENDING
-        cert.save(update_fields=['status', 'updated_at'])
-
-        # Enqueue async issuance task again
         from django_q.tasks import async_task
-        async_task('certificates.tasks.issue_certificate', cert.certificate_id)
 
-        return Response({'detail': 'Retry initiated.'}, status=status.HTTP_202_ACCEPTED)
+        async_task('notifications.tasks.send_certificate_issued', certificate.certificate_id)
 
-
-class PublicCertificateVerifyView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request, cert_id):
-        try:
-            cert = Certificate.objects.select_related('revocation').get(
-                certificate_id=cert_id
-            )
-        except Certificate.DoesNotExist:
-            return Response(
-                {'detail': 'Certificate not found.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # TODO Phase 11: recompute hash and compare with on-chain record
-        # to detect TAMPERED status.
-
-        serializer = PublicVerifySerializer(cert)
-        return Response(serializer.data)
+        return Response(
+            {'detail': 'Resend requested. The email has been queued.'},
+            status=status.HTTP_202_ACCEPTED,
+        )

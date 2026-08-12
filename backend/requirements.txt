@@ -1,13 +1,38 @@
+# ─── Core ────────────────────────────────────────────────────────────────────
 Django==5.0.3
 djangorestframework==3.15.1
 djangorestframework-simplejwt==5.3.1
-web3==6.15.1
-django-q2==1.10.0
-WeasyPrint==61.2
-qrcode[pil]==7.4.2
-django-ratelimit==4.1.0
-argon2-cffi==23.1.0
 psycopg2-binary==2.9.9
 django-cors-headers==4.3.1
 python-dotenv==1.0.1
 gunicorn==21.2.0
+
+# ─── Background tasks (single-concurrency cluster; see Q_CLUSTER) ────────────
+django-q2==1.10.0
+
+# ─── Blockchain ──────────────────────────────────────────────────────────────
+web3==6.15.1
+
+# ─── PDF + QR ────────────────────────────────────────────────────────────────
+WeasyPrint==61.2
+# WeasyPrint 61.x calls pydyf.PDF(version, identifier); pydyf 0.11 changed that
+# signature to take no positional arguments, so an unpinned install resolves to
+# a pydyf that raises TypeError on every render.
+pydyf==0.10.0
+qrcode[pil]==7.4.2
+
+# ─── Security ────────────────────────────────────────────────────────────────
+django-ratelimit==4.1.0
+argon2-cffi==23.1.0
+
+# ─── Test + dev tooling ──────────────────────────────────────────────────────
+pytest==8.1.1
+pytest-django==4.8.0
+pytest-cov==5.0.0
+# Phase 4 verifies PDF contents programmatically rather than by eye:
+# pdfplumber extracts the text, pyzbar decodes the embedded QR image.
+pdfplumber==0.11.0
+pyzbar==0.1.9
+pillow==10.3.0
+# Freezes time in lockout / code-expiry tests instead of sleeping.
+time-machine==2.14.1
