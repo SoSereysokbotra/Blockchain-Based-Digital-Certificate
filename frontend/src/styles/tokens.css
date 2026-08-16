@@ -1,99 +1,358 @@
+/* ============================================================================
+   BCIP design tokens
+   See docs/FRONTEND_REDESIGN_PLAN.md
+
+   Colour carries meaning in this product and is not decorative:
+     accent (teal)   → the application, off-chain data, the trusted-good state
+     chain  (bronze) → anything touching the blockchain: hashes, tx, anchors
+     danger (red)    → tamper and failure, used sparingly so it keeps its force
+
+   Both themes are defined at token level only. No component rule below ever
+   declares a colour inside a media query — otherwise it would apply in one
+   theme and vanish in the other.
+   ========================================================================= */
+
 :root {
-  /* Color Palette - Primary (Professional Blue) */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
+  /* ── Ground and surfaces ─────────────────────────────────────────────── */
+  /* A cool grey-green rather than a neutral grey: biased toward the accent
+     so the palette reads as chosen rather than inherited. */
+  --bg:            #F5F6F3;
+  --bg-sunken:     #EDEFEA;
+  --surface:       #FFFFFF;
+  --surface-2:     #FAFBF8;
+  --surface-hover: #F2F5F1;
 
-  /* Color Palette - Neutral (Slate) */
-  --color-neutral-50: #f8fafc;
-  --color-neutral-100: #f1f5f9;
-  --color-neutral-200: #e2e8f0;
-  --color-neutral-300: #cbd5e1;
-  --color-neutral-700: #334155;
-  --color-neutral-800: #1e293b;
-  --color-neutral-900: #0f172a;
+  /* ── Text ─────────────────────────────────────────────────────────────── */
+  --ink:      #161B19;
+  --ink-2:    #354039;
+  --muted:    #5B6662;
+  --muted-2:  #7C8783;
 
-  /* Semantic Colors */
-  --color-success: #10b981; /* Green */
-  --color-success-bg: #d1fae5;
-  --color-warning: #f59e0b; /* Amber */
-  --color-warning-bg: #fef3c7;
-  --color-danger: #ef4444; /* Red */
-  --color-danger-600: #dc2626;
-  --color-danger-700: #b91c1c;
-  --color-danger-bg: #fee2e2;
-  --color-info: #3b82f6; /* Blue */
-  --color-info-bg: #eff6ff;
+  /* ── Lines ────────────────────────────────────────────────────────────── */
+  --line:     #DCE0DA;
+  --line-2:   #E9ECE6;
+  --line-strong: #C3CAC1;
 
-  /* Typography */
-  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  
-  /* Spacing */
-  --spacing-1: 0.25rem;
-  --spacing-2: 0.5rem;
-  --spacing-3: 0.75rem;
-  --spacing-4: 1rem;
-  --spacing-6: 1.5rem;
-  --spacing-8: 2rem;
-  --spacing-10: 2.5rem;
-  --spacing-12: 3rem;
-  
-  /* Radii */
-  --radius-sm: 0.125rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-full: 9999px;
+  /* ── Accent: the application ──────────────────────────────────────────── */
+  --accent:        #0B6B5F;
+  --accent-hover:  #095950;
+  --accent-active: #074840;
+  --accent-tint:   #E3EFEC;
+  --accent-ring:   rgba(11, 107, 95, .28);
+  --on-accent:     #FFFFFF;
 
-  /* Status Colors */
-  /* Certificate Statuses: PENDING, VALID, EXPIRED, REVOKED, FAILED */
-  /* Verification Outcomes: VALID, EXPIRED, REVOKED, TAMPERED, NOT_FOUND */
-  
-  --status-pending-color: var(--color-neutral-700);
-  --status-pending-bg: var(--color-neutral-200);
-  
-  --status-valid-color: var(--color-success);
-  --status-valid-bg: var(--color-success-bg);
-  
-  --status-expired-color: var(--color-warning);
-  --status-expired-bg: var(--color-warning-bg);
-  
-  --status-revoked-color: var(--color-danger);
-  --status-revoked-bg: var(--color-danger-bg);
-  
-  --status-failed-color: var(--color-danger);
-  --status-failed-bg: var(--color-danger-bg);
-  
-  --status-tampered-color: var(--color-danger);
-  --status-tampered-bg: var(--color-danger-bg);
+  /* ── Chain: the blockchain ────────────────────────────────────────────── */
+  --chain:      #8A5A0B;
+  --chain-tint: #F5ECDB;
 
-  --status-not-found-color: var(--color-neutral-700);
-  --status-not-found-bg: var(--color-neutral-200);
+  /* ── Semantic ─────────────────────────────────────────────────────────── */
+  --danger:        #A23829;
+  --danger-hover:  #8B2E20;
+  --danger-tint:   #F8E9E6;
+  --warn:          #8A6D3B;
+  --warn-tint:     #F5EEDF;
+  --info:          #2C5F76;
+  --info-tint:     #E5EEF2;
+
+  /* ── Type ─────────────────────────────────────────────────────────────── */
+  /* Every stack below resolves to a font that is actually installed, so the
+     design that ships is the design that renders. The previous system named
+     'Inter' without ever loading it, and silently fell back. */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino,
+                  "Book Antiqua", Georgia, serif;
+  --font-ui:      "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+                  "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    "Cascadia Mono", Consolas, ui-monospace, "SF Mono",
+                  Menlo, monospace;
+
+  --text-2xs: 0.6875rem;  /* 11px — pill and eyebrow labels */
+  --text-xs:  0.75rem;    /* 12px */
+  --text-sm:  0.8125rem;  /* 13px */
+  --text-md:  0.875rem;   /* 14px — table and control default */
+  --text-base:0.9375rem;  /* 15px — body */
+  --text-lg:  1.0625rem;  /* 17px */
+  --text-xl:  1.375rem;   /* 22px */
+  --text-2xl: 1.75rem;    /* 28px — page titles */
+  --text-3xl: 2.125rem;   /* 34px */
+
+  /* ── Space ────────────────────────────────────────────────────────────── */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.25rem;
+  --s-6: 1.5rem;
+  --s-8: 2rem;
+  --s-10: 2.5rem;
+  --s-12: 3rem;
+  --s-16: 4rem;
+
+  /* ── Shape ────────────────────────────────────────────────────────────── */
+  /* Restrained radii. Uniform large rounding on every surface is one of the
+     tells of a templated interface. */
+  --r-sm:   3px;
+  --r-md:   5px;
+  --r-lg:   7px;
+  --r-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(22, 27, 25, .05);
+  --shadow-md: 0 2px 8px rgba(22, 27, 25, .07);
+  --shadow-lg: 0 12px 32px rgba(22, 27, 25, .13);
+
+  --shell-max: 1180px;
+  --header-h: 60px;
+
+  /* ── Status ───────────────────────────────────────────────────────────── */
+  /* Each state differs in colour AND border style, so the dashboard stays
+     scannable in greyscale and for colour-blind users. */
+  --status-pending-fg:  var(--muted);
+  --status-pending-bg:  var(--surface-2);
+  --status-pending-bd:  var(--line-strong);
+
+  --status-valid-fg:    var(--accent);
+  --status-valid-bg:    var(--accent-tint);
+  --status-valid-bd:    var(--accent);
+
+  --status-expired-fg:  var(--warn);
+  --status-expired-bg:  var(--warn-tint);
+  --status-expired-bd:  var(--warn);
+
+  --status-revoked-fg:  var(--danger);
+  --status-revoked-bg:  var(--danger-tint);
+  --status-revoked-bd:  var(--danger);
+
+  --status-failed-fg:   var(--danger);
+  --status-failed-bg:   var(--danger-tint);
+  --status-failed-bd:   var(--danger);
+
+  --status-tampered-fg: var(--danger);
+  --status-tampered-bg: var(--danger-tint);
+  --status-tampered-bd: var(--danger);
+
+  --status-neutral-fg:  var(--muted);
+  --status-neutral-bg:  transparent;
+  --status-neutral-bd:  var(--line-strong);
+
+  color-scheme: light;
 }
+
+/* Dark, for viewers on the default "system" setting (nothing stamped). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:            #0F1413;
+    --bg-sunken:     #0B100F;
+    --surface:       #161C1A;
+    --surface-2:     #1A2220;
+    --surface-hover: #202927;
+
+    --ink:      #E9EDEA;
+    --ink-2:    #C5CDC9;
+    --muted:    #8D9894;
+    --muted-2:  #74807C;
+
+    --line:        #2C3532;
+    --line-2:      #232B29;
+    --line-strong: #3C4744;
+
+    --accent:        #4FC9B6;
+    --accent-hover:  #6ED6C5;
+    --accent-active: #8AE0D2;
+    --accent-tint:   #13302B;
+    --accent-ring:   rgba(79, 201, 182, .32);
+    --on-accent:     #06201C;
+
+    --chain:      #DFA53E;
+    --chain-tint: #2E2412;
+
+    --danger:       #EE8A79;
+    --danger-hover: #F4A395;
+    --danger-tint:  #2E1815;
+    --warn:         #C9A24E;
+    --warn-tint:    #2B2414;
+    --info:         #7FB4CC;
+    --info-tint:    #142329;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, .45);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, .55);
+
+    color-scheme: dark;
+  }
+}
+
+/* Dark, chosen explicitly — wins over a light OS preference. */
+:root[data-theme="dark"] {
+  --bg:            #0F1413;
+  --bg-sunken:     #0B100F;
+  --surface:       #161C1A;
+  --surface-2:     #1A2220;
+  --surface-hover: #202927;
+
+  --ink:      #E9EDEA;
+  --ink-2:    #C5CDC9;
+  --muted:    #8D9894;
+  --muted-2:  #74807C;
+
+  --line:        #2C3532;
+  --line-2:      #232B29;
+  --line-strong: #3C4744;
+
+  --accent:        #4FC9B6;
+  --accent-hover:  #6ED6C5;
+  --accent-active: #8AE0D2;
+  --accent-tint:   #13302B;
+  --accent-ring:   rgba(79, 201, 182, .32);
+  --on-accent:     #06201C;
+
+  --chain:      #DFA53E;
+  --chain-tint: #2E2412;
+
+  --danger:       #EE8A79;
+  --danger-hover: #F4A395;
+  --danger-tint:  #2E1815;
+  --warn:         #C9A24E;
+  --warn-tint:    #2B2414;
+  --info:         #7FB4CC;
+  --info-tint:    #142329;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, .45);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, .55);
+
+  color-scheme: dark;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Compatibility aliases
+   ═══════════════════════════════════════════════════════════════════════
+
+   Several pages set spacing and colour through inline `style` attributes using
+   the previous token names. Aliasing here rather than editing fifteen inline
+   styles across six page files keeps the redesign a pure styling change, so no
+   page logic had to be touched and nothing can regress behaviourally.
+
+   Because each alias points at a *token* rather than a literal, they inherit
+   dark mode automatically.
+
+   A few of these (--color-danger-500, --color-success-500, --color-primary-900,
+   --color-neutral-600) were referenced by pages but never actually defined in
+   the old token file, so they silently resolved to nothing. They work now.
+
+   New code should use the tokens above. These exist only so old inline styles
+   keep working, and can be deleted once the pages are cleaned up.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --spacing-1: var(--s-1);
+  --spacing-2: var(--s-2);
+  --spacing-3: var(--s-3);
+  --spacing-4: var(--s-4);
+  --spacing-5: var(--s-5);
+  --spacing-6: var(--s-6);
+  --spacing-8: var(--s-8);
+  --spacing-10: var(--s-10);
+  --spacing-12: var(--s-12);
+
+  --color-neutral-50:  var(--bg);
+  --color-neutral-100: var(--surface-2);
+  --color-neutral-200: var(--line-2);
+  --color-neutral-300: var(--line);
+  --color-neutral-600: var(--muted);
+  --color-neutral-700: var(--muted);
+  --color-neutral-800: var(--ink-2);
+  --color-neutral-900: var(--ink);
+
+  --color-primary-50:  var(--accent-tint);
+  --color-primary-100: var(--accent-tint);
+  --color-primary-500: var(--accent);
+  --color-primary-600: var(--accent);
+  --color-primary-700: var(--accent-hover);
+  --color-primary-900: var(--ink);
+
+  --color-success:     var(--accent);
+  --color-success-500: var(--accent);
+  --color-success-bg:  var(--accent-tint);
+  --color-warning:     var(--warn);
+  --color-warning-500: var(--warn);
+  --color-warning-bg:  var(--warn-tint);
+  --color-danger:      var(--danger);
+  --color-danger-500:  var(--danger);
+  --color-danger-600:  var(--danger);
+  --color-danger-700:  var(--danger-hover);
+  --color-danger-bg:   var(--danger-tint);
+  --color-info:        var(--info);
+  --color-info-bg:     var(--info-tint);
+
+  --font-family-sans: var(--font-ui);
+  --font-size-xs:   var(--text-xs);
+  --font-size-sm:   var(--text-sm);
+  --font-size-base: var(--text-base);
+  --font-size-lg:   var(--text-lg);
+  --font-size-xl:   var(--text-xl);
+  --font-size-2xl:  var(--text-2xl);
+
+  --radius-sm:   var(--r-sm);
+  --radius-md:   var(--r-md);
+  --radius-lg:   var(--r-lg);
+  --radius-full: var(--r-full);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
-  font-family: var(--font-family-sans);
-  color: var(--color-neutral-900);
-  background-color: var(--color-neutral-50);
   margin: 0;
   padding: 0;
-  line-height: 1.5;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  box-sizing: border-box;
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin: 0;
 }
 
-/* Reset buttons */
-button {
+p { margin: 0; }
+
+button, input, select, textarea {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
+}
+
+a { color: var(--accent); text-underline-offset: 2px; }
+
+/* Focus is always visible. Never replaced with outline: none. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+::selection {
+  background: var(--accent-tint);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

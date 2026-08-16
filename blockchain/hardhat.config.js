@@ -23,6 +23,13 @@ export default {
       type: "edr-simulated",
       chainType: "l1",
     },
+    // Local blockchain node
+    localhost: {
+      type: "http",
+      chainType: "l1",
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
+    },
     // Polygon Amoy testnet (SRS 7.2). Only used by the deploy script.
     amoy: {
       type: "http",

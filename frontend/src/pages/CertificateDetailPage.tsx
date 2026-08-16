@@ -70,11 +70,12 @@ export const CertificateDetailPage: React.FC = () => {
     try {
       await api.post(`/certificates/${cert.certificate_id}/revoke/`, { reason: revokeReason });
       setCert({ ...cert, status: 'REVOKED' });
-      addToast('success', 'Certificate revoked successfully.');
+      addToast('success', 'Certificate revocation submitted — confirming on-chain…');
       setRevokeModalOpen(false);
       setRevokeReason('');
-    } catch {
-      addToast('error', 'Failed to revoke certificate.');
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.response?.data?.reason?.[0] || 'Failed to revoke certificate.';
+      addToast('error', msg);
     } finally {
       setIsRevoking(false);
     }
@@ -99,8 +100,8 @@ export const CertificateDetailPage: React.FC = () => {
   const isStalePending = cert.status === 'PENDING' && cert.certificate_id === 'cert-stale-pending';
   const canRetry = isFailed || isStalePending;
 
-  // Can revoke if status is VALID or PENDING (per FR-3.4)
-  const canRevoke = cert.status === 'VALID' || cert.status === 'PENDING';
+  // Can revoke only when anchored as VALID (FR-3.4)
+  const canRevoke = cert.status === 'VALID';
 
   return (
     <div className="detail-page">

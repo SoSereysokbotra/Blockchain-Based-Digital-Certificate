@@ -306,6 +306,14 @@ CORS_ALLOWED_ORIGINS = env_list(
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
+# Any header the SPA sends that is not on this list causes the browser to fail
+# the CORS preflight and never send the real request — the failure looks like a
+# generic network error in the UI, with nothing in the server log but an OPTIONS.
+# Idempotency-Key is a custom header (FR-2.2.1), so it has to be named here.
+from corsheaders.defaults import default_headers  # noqa: E402
+
+CORS_ALLOW_HEADERS = (*default_headers, 'idempotency-key')
+
 # ─── Admin exposure (NFR-1.12) ───────────────────────────────────────────────
 # /admin/ is only routed when this is explicitly enabled, so a deployment that
 # forgets to think about it does not silently publish the admin site.

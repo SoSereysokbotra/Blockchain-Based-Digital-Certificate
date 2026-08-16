@@ -14,7 +14,8 @@ export type StatusType =
   | 'REVOKED' 
   | 'FAILED'
   | 'TAMPERED'
-  | 'NOT_FOUND';
+  | 'NOT_FOUND'
+  | 'UNVERIFIED';
 
 export interface StatusPillProps {
   status: StatusType;

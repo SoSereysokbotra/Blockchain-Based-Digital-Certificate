@@ -1,0 +1,127 @@
+services:
+  # ─── 1. Django REST API Web Service ──────────────────────────────────────────
+  - type: web
+    name: bcip-backend
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    dockerCommand: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py createcachetable &&
+             gunicorn bcip_backend.wsgi:application --bind 0.0.0.0:$PORT"
+    healthCheckPath: /api/public/verify/health/
+    envVars:
+      - key: DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DB_HOST
+        fromDatabase:
+          name: bcip-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: bcip-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: bcip-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: bcip-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: bcip-postgres
+          property: password
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://bcip-frontend.onrender.com,http://localhost:5173"
+      - key: FRONTEND_URL
+        value: "https://bcip-frontend.onrender.com"
+      - key: BLOCKCHAIN_RPC_URL
+        sync: false
+      - key: BLOCKCHAIN_CONTRACT_ADDRESS
+        sync: false
+      - key: BLOCKCHAIN_ISSUER_PRIVATE_KEY
+        sync: false
+      - key: EMAIL_BACKEND
+        value: "django.core.mail.backends.console.EmailBackend"
+
+  # ─── 2. Django-Q Background Blockchain Worker ────────────────────────────────
+  - type: worker
+    name: bcip-worker
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    dockerCommand: python manage.py qcluster
+    envVars:
+      - key: DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: bcip-backend
+          envVarKey: SECRET_KEY
+      - key: DB_HOST
+        fromDatabase:
+          name: bcip-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: bcip-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: bcip-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: bcip-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: bcip-postgres
+          property: password
+      - key: BLOCKCHAIN_RPC_URL
+        fromService:
+          type: web
+          name: bcip-backend
+          envVarKey: BLOCKCHAIN_RPC_URL
+      - key: BLOCKCHAIN_CONTRACT_ADDRESS
+        fromService:
+          type: web
+          name: bcip-backend
+          envVarKey: BLOCKCHAIN_CONTRACT_ADDRESS
+      - key: BLOCKCHAIN_ISSUER_PRIVATE_KEY
+        fromService:
+          type: web
+          name: bcip-backend
+          envVarKey: BLOCKCHAIN_ISSUER_PRIVATE_KEY
+
+  # ─── 3. React Frontend Static Web App ─────────────────────────────────────────
+  - type: web
+    name: bcip-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: bcip-backend
+          property: url
+          format: "%s/api"
+
+databases:
+  - name: bcip-postgres
+    databaseName: bcip
+    user: bcip_user
+    plan: free

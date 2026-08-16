@@ -1,8 +1,20 @@
 export type CertificateStatus = 'PENDING' | 'VALID' | 'EXPIRED' | 'REVOKED' | 'FAILED';
 export type VerificationOutcome = 'VALID' | 'EXPIRED' | 'REVOKED' | 'TAMPERED' | 'NOT_FOUND' | 'UNVERIFIED';
 
+export interface Organization {
+  id: string;
+  name: string;
+  email: string;
+  wallet_address: string;
+  is_verified: boolean;
+  created_at: string;
+}
+
 export interface LoginResponse {
   access_token: string;
+  /** Returned by /auth/login/ and /auth/refresh-token/ so the shell can show
+   *  which account is signed in without a second request. */
+  organization?: Organization;
 }
 
 export interface ErrorResponse {

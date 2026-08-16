@@ -278,6 +278,28 @@ class TestIdempotency:
 
         assert Certificate.objects.count() == 2
 
+    def test_idempotency_key_header_survives_cors_preflight(self, api):
+        """
+        The browser will not send the POST at all unless the preflight allows
+        this custom header, and the failure is invisible server-side: the log
+        shows an OPTIONS with no POST after it, and the UI shows only a generic
+        "failed, please try again". Asserting the allow-list here is the cheapest
+        way to stop that recurring.
+        """
+        from django.conf import settings
+
+        allowed = [h.lower() for h in settings.CORS_ALLOW_HEADERS]
+        assert 'idempotency-key' in allowed
+
+        response = api.options(
+            LIST_URL,
+            HTTP_ORIGIN='http://localhost:5173',
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD='POST',
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS='content-type,authorization,idempotency-key',
+        )
+
+        assert 'idempotency-key' in response['access-control-allow-headers'].lower()
+
     def test_key_is_scoped_per_organization(self, auth_client, other_auth_client,
                                             certificate_payload):
         key = str(uuid.uuid4())

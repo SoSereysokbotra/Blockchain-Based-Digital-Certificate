@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Table } from '../components/ui/Table';
 import { StatusPill } from '../components/ui/StatusPill';
-import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import api from '../api/client';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -74,12 +73,13 @@ export const DashboardPage: React.FC = () => {
       <Card className="dashboard-controls">
         <div className="dashboard-search">
           <Search size={18} className="search-icon" />
-          <Input 
-            label="" 
+          <input 
+            type="text"
             value={search} 
             onChange={(e) => setSearch(e.target.value)} 
             placeholder="Search by recipient or ID..." 
-            className="search-input-field"
+            className="input-field search-input"
+            aria-label="Search by recipient or ID"
           />
         </div>
         <div className="dashboard-filter">

@@ -41,6 +41,8 @@ services:
       - media_data:/app/media
     ports:
       - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - path: ./backend/.env
         required: false
@@ -54,6 +56,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     command: python manage.py qcluster
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
       - media_data:/app/media
