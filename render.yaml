@@ -9,7 +9,6 @@ services:
       sh -c "python manage.py migrate --noinput &&
              python manage.py createcachetable &&
              gunicorn bcip_backend.wsgi:application --bind 0.0.0.0:$PORT"
-    healthCheckPath: /api/public/verify/health/
     envVars:
       - key: DEBUG
         value: "0"
@@ -117,8 +116,8 @@ services:
         fromService:
           type: web
           name: bcip-backend
-          property: url
-          format: "%s/api"
+          property: host
+          format: "https://%s/api"
 
 databases:
   - name: bcip-postgres
