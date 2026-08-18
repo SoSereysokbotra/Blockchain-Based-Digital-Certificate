@@ -1,10 +1,10 @@
 {
   "network": "amoy",
   "chainId": 80002,
-  "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "deployTxHash": "0x88ffd69f988c31d714ba9054fb4d621b01dc909c0e225044b7b586666fa67024",
-  "deployedAt": "2026-08-16T16:37:05.026Z",
+  "address": "0x4a6cd36567f31011b5ffF648117186c5667404BF",
+  "deployer": "0xbAAF79B3fCd954B306f7b70295d3d9E3E438384c",
+  "deployTxHash": "0xb0e6afbbab26b981bc032a42d66bbc1c2053e981c30a3226be99390290169dad",
+  "deployedAt": "2026-08-18T02:28:25.573Z",
   "abi": [
     {
       "inputs": [],

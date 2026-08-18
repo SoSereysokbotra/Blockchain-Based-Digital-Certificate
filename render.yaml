@@ -36,5 +36,3 @@ services:
         sync: false
       - key: BLOCKCHAIN_ISSUER_PRIVATE_KEY
         sync: false
-      - key: EMAIL_BACKEND
-        value: "django.core.mail.backends.console.EmailBackend"
