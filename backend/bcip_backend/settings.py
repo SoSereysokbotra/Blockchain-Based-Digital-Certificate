@@ -98,6 +98,13 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
+        'OPTIONS': {
+            # Managed Postgres (Neon) refuses plaintext connections, so every
+            # deployment sets this to "require". The default stays "prefer" —
+            # psycopg2's own default — because the docker-compose `db` service
+            # runs without TLS and "require" would make it unreachable.
+            'sslmode': os.getenv('DB_SSLMODE', 'prefer'),
+        },
     }
 }
 

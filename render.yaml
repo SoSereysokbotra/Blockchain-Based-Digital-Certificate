@@ -17,6 +17,9 @@ services:
         sync: false
       - key: DB_PORT
         sync: false
+      # Neon refuses plaintext connections.
+      - key: DB_SSLMODE
+        value: "require"
       - key: DB_NAME
         sync: false
       - key: DB_USER
