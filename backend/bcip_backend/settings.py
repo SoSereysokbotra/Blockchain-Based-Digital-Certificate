@@ -311,6 +311,9 @@ RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
 # recipient once a single sender address is confirmed. See
 # notifications/email_backends.py for the trade-off between the two.
 BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
+MAILJET_API_KEY = os.getenv('MAILJET_API_KEY', '')
+MAILJET_SECRET_KEY = os.getenv('MAILJET_SECRET_KEY', '')
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
 
 # ─── Frontend / CORS ─────────────────────────────────────────────────────────
 

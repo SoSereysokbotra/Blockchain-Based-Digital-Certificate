@@ -49,5 +49,11 @@ services:
       # from a confirmed sender address without owning a domain.
       - key: BREVO_API_KEY
         sync: false
+      - key: MAILJET_API_KEY
+        sync: false
+      - key: MAILJET_SECRET_KEY
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
       - key: DEFAULT_FROM_EMAIL
         sync: false
