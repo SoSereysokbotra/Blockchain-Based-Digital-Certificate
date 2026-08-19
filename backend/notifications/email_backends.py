@@ -73,6 +73,14 @@ class ResendAPIBackend(BaseEmailBackend):
             logger.error('Resend returned %s: %s', response.status_code, detail)
             return False
 
+        # Resend answers with the queued message id. Log it: acceptance is not
+        # delivery, and the id is the only handle for chasing a later bounce.
+        try:
+            message_id = response.json().get('id')
+        except ValueError:
+            message_id = None
+        logger.info('Resend accepted mail to %s (id=%s)', payload['to'], message_id)
+
         return True
 
     def _payload(self, message) -> dict:
