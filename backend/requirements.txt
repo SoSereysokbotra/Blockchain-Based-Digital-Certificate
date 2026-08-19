@@ -4,6 +4,8 @@ djangorestframework==3.15.1
 djangorestframework-simplejwt==5.3.1
 psycopg2-binary==2.9.9
 django-cors-headers==4.3.1
+# Used by the Resend HTTPS email backend (see notifications/email_backends.py).
+requests==2.31.0
 python-dotenv==1.0.1
 gunicorn==21.2.0
 

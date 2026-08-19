@@ -296,6 +296,11 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@bcip.local')
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
 
+# Render's free instances block outbound SMTP (25/465/587), so production
+# points EMAIL_BACKEND at notifications.email_backends.ResendAPIBackend,
+# which reaches Resend over HTTPS instead.
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+
 # ─── Frontend / CORS ─────────────────────────────────────────────────────────
 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
