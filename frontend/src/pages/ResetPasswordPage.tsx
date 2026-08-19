@@ -28,7 +28,7 @@ export const ResetPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await api.post('/auth/password-reset/request/', { email });
+      await api.post('/auth/request-password-reset/', { email });
       setStep(1);
     } catch {
       setError('An error occurred. Please try again.');
@@ -43,7 +43,7 @@ export const ResetPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await api.post('/auth/password-reset/verify/', { email, reset_code: code });
+      await api.post('/auth/verify-password-reset/', { email, code });
       setStep(2);
     } catch (err: any) {
       setError('Invalid or expired code');
@@ -68,7 +68,7 @@ export const ResetPasswordPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await api.post('/auth/password-reset/confirm/', { email, reset_code: code, new_password: password });
+      await api.post('/auth/reset-password/', { email, code, new_password: password });
       addToast('success', 'Password reset successfully. You can now log in.');
       navigate('/login');
     } catch (error: any) {

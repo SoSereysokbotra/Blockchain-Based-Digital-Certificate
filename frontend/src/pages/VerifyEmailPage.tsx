@@ -56,7 +56,7 @@ export const VerifyEmailPage: React.FC = () => {
     }
     setError(null);
     try {
-      await api.post('/auth/resend-verification/', { email });
+      await api.post('/auth/resend-email-verification/', { email });
       addToast('success', 'A new verification code has been sent.');
     } catch {
       setError('Failed to resend code. Please try again later.');
