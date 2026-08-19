@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useLocation, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
+import { CodeInput } from '../components/ui/CodeInput';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
@@ -10,31 +11,42 @@ import { AlertTriangle, CheckCircle } from 'lucide-react';
 export const VerifyEmailPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { addToast } = useToast();
 
-  // If we came from the registration page, the email might be in state
-  const stateEmail = location.state?.email || '';
+  // The backend binds a code to one account, so the email has to travel with
+  // it. Registration passes it in router state, which a refresh or a fresh tab
+  // discards — hence the ?email= and sessionStorage fallbacks before we give up
+  // and ask. Asking is the last resort, not the default.
+  const knownEmail =
+    location.state?.email ||
+    searchParams.get('email') ||
+    sessionStorage.getItem('bcip:pending-verification-email') ||
+    '';
 
-  const [email, setEmail] = useState(stateEmail);
+  const [email, setEmail] = useState(knownEmail);
   const [code, setCode] = useState('');
-  
+
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async (submittedCode: string) => {
     setError(null);
 
-    if (!email || !code) {
-      setError('Please provide both email and verification code.');
+    if (!email) {
+      setError('Please enter the email address you registered with.');
+      return;
+    }
+    if (submittedCode.length !== 6) {
+      setError('Enter all six digits of your verification code.');
       return;
     }
 
     setIsLoading(true);
-
     try {
-      await api.post('/auth/verify-email/', { email, code });
+      await api.post('/auth/verify-email/', { email, code: submittedCode });
+      sessionStorage.removeItem('bcip:pending-verification-email');
       setIsSuccess(true);
       addToast('success', 'Email verified successfully! You can now log in.');
       setTimeout(() => navigate('/login'), 3000);
@@ -44,9 +56,15 @@ export const VerifyEmailPage: React.FC = () => {
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
+      setCode('');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerify = (e: React.FormEvent) => {
+    e.preventDefault();
+    submit(code);
   };
 
   const handleResend = async () => {
@@ -57,6 +75,7 @@ export const VerifyEmailPage: React.FC = () => {
     setError(null);
     try {
       await api.post('/auth/resend-email-verification/', { email });
+      setCode('');
       addToast('success', 'A new verification code has been sent.');
     } catch {
       setError('Failed to resend code. Please try again later.');
@@ -82,7 +101,7 @@ export const VerifyEmailPage: React.FC = () => {
     <div className="auth-page">
       <Card className="auth-card">
         <h1 className="auth-title">Verify Email</h1>
-        
+
         {error && (
           <div className="auth-error-banner" style={{ marginTop: 'var(--spacing-4)' }}>
             <AlertTriangle size={18} />
@@ -92,29 +111,33 @@ export const VerifyEmailPage: React.FC = () => {
 
         <form onSubmit={handleVerify} className="auth-form" style={{ marginTop: 'var(--spacing-6)' }}>
           <p className="auth-subtitle" style={{ marginBottom: 'var(--spacing-4)' }}>
-            Enter the 6-digit verification code sent to your email.
+            {knownEmail
+              ? <>Enter the 6-digit code we sent to <strong>{knownEmail}</strong>.</>
+              : 'Enter the 6-digit verification code sent to your email.'}
           </p>
-          
-          <Input 
-            label="Email" 
-            type="email" 
-            value={email} 
-            onChange={(e) => setEmail(e.target.value)} 
-            required 
+
+          {!knownEmail && (
+            <Input
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          )}
+
+          <CodeInput
+            value={code}
+            onChange={setCode}
+            error={!!error}
+            disabled={isLoading}
+            onComplete={submit}
           />
-          
-          <Input 
-            label="Verification Code" 
-            value={code} 
-            onChange={(e) => setCode(e.target.value)} 
-            required 
-            placeholder="e.g. 123456"
-          />
-          
+
           <Button type="submit" isLoading={isLoading} style={{ width: '100%', marginTop: 'var(--spacing-4)' }}>
             Verify Email
           </Button>
-          
+
           <Button type="button" variant="outline" onClick={handleResend} style={{ width: '100%', marginTop: 'var(--spacing-2)' }}>
             Resend Code
           </Button>

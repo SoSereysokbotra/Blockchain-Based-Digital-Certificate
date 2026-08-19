@@ -1186,3 +1186,66 @@
     max-width: none;
   }
 }
+
+/* ── One-time code entry ────────────────────────────────────────────────────
+   Six boxes rather than one field. The digits are set in the mono stack at a
+   size well above the form default: a verification code is transcribed from
+   another screen, so it has to be checkable at a glance, and proportional
+   digits make that harder than it needs to be. */
+
+.code-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.code-input-boxes {
+  display: flex;
+  gap: var(--s-2);
+  /* Boxes shrink together on narrow screens instead of overflowing the card. */
+  width: 100%;
+}
+
+.code-input-box {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 56px;
+  padding: 0;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  transition: border-color .14s ease, box-shadow .14s ease;
+}
+
+.code-input-box:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* A filled box reads as done without shouting: tinted ground, accent digit. */
+.code-input-box--filled {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.code-input-box.error {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+.code-input-box.error:focus {
+  box-shadow: 0 0 0 3px var(--danger-tint);
+}
+
+.code-input-box:disabled {
+  background: var(--bg-sunken);
+  color: var(--muted-2);
+  cursor: not-allowed;
+}

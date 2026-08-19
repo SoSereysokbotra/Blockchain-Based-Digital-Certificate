@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
+import { CodeInput } from '../components/ui/CodeInput';
 import { FormStepper } from '../components/ui/FormStepper';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
@@ -113,7 +114,12 @@ export const ResetPasswordPage: React.FC = () => {
              <p className="auth-subtitle" style={{ marginBottom: 'var(--spacing-4)' }}>
               Enter the verification code sent to <strong>{email}</strong>.
             </p>
-            <Input label="Verification Code" value={code} onChange={(e) => setCode(e.target.value)} required />
+            <CodeInput
+              value={code}
+              onChange={setCode}
+              error={!!error}
+              disabled={isLoading}
+            />
             <Button type="submit" isLoading={isLoading} style={{ width: '100%', marginTop: 'var(--spacing-4)' }}>
               Verify Code
             </Button>

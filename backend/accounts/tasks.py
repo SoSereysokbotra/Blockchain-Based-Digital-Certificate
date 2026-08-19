@@ -12,6 +12,7 @@ import logging
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 
 from .models import Organization
 
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 CODE_TTL_MINUTES = 10
 
 
-def _deliver(*, organization, subject, body, kind):
+def _deliver(*, organization, subject, body, kind, html_context=None):
     """Send and log. Never raises — a queued task must not crash the cluster."""
     from notifications.models import NotificationLog, NotificationStatus
 
@@ -30,6 +31,12 @@ def _deliver(*, organization, subject, body, kind):
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[organization.email],
     )
+    # The plain-text body stays the source of truth: it is what plain-text
+    # clients and screen readers get, and it must carry the code on its own.
+    if html_context:
+        message.attach_alternative(
+            render_to_string('emails/code_email.html', html_context), 'text/html'
+        )
 
     try:
         message.send(fail_silently=False)
@@ -75,6 +82,17 @@ def send_verification_email(organization_id: str, code: str) -> bool:
         subject='Verify your BCIP account',
         body=body,
         kind=NotificationKind.EMAIL_VERIFICATION,
+        html_context={
+            'heading': 'Verify your email address',
+            'greeting_name': organization.name,
+            'intro': 'Use the code below to finish setting up your BCIP account.',
+            'code': code,
+            'ttl_minutes': CODE_TTL_MINUTES,
+            'disclaimer': 'If you did not create a BCIP account, you can safely '
+                          'ignore this message.',
+            'preheader': f'Your BCIP verification code expires in '
+                         f'{CODE_TTL_MINUTES} minutes.',
+        },
     )
 
 
@@ -100,6 +118,18 @@ def send_password_reset_email(organization_id: str, code: str) -> bool:
         subject='Reset your BCIP password',
         body=body,
         kind=NotificationKind.PASSWORD_RESET,
+        html_context={
+            'heading': 'Reset your password',
+            'greeting_name': organization.name,
+            'intro': 'Use the code below to set a new password for your BCIP '
+                     'account.',
+            'code': code,
+            'ttl_minutes': CODE_TTL_MINUTES,
+            'disclaimer': 'If you did not request a password reset, ignore this '
+                          'message — your password has not changed.',
+            'preheader': f'Your BCIP password reset code expires in '
+                         f'{CODE_TTL_MINUTES} minutes.',
+        },
     )
 
 
