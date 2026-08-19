@@ -307,6 +307,10 @@ EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
 # points EMAIL_BACKEND at notifications.email_backends.ResendAPIBackend,
 # which reaches Resend over HTTPS instead.
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+# Brevo is the alternative when BCIP has no verified domain: it sends to any
+# recipient once a single sender address is confirmed. See
+# notifications/email_backends.py for the trade-off between the two.
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
 
 # ─── Frontend / CORS ─────────────────────────────────────────────────────────
 

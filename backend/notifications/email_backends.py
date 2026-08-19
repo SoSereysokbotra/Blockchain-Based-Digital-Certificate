@@ -1,17 +1,27 @@
 """
-Email backends that do not need SMTP.
+Email backends that reach their provider over HTTPS instead of SMTP.
 
 Render's free instances firewall off outbound ports 25/465/587, so any
-smtp.EmailBackend send fails with `[Errno 101] Network is unreachable`
-before it ever reaches the provider. Resend also exposes an HTTPS API on
-443, which is not blocked, so this backend speaks that instead while
-keeping the ordinary django.core.mail interface — callers keep using
-EmailMultiAlternatives and switching is a matter of EMAIL_BACKEND alone.
+smtp.EmailBackend send dies with `[Errno 101] Network is unreachable`
+before it ever reaches the provider. Both backends here POST to a REST API
+on 443, which is not blocked, while keeping the ordinary django.core.mail
+interface: callers keep using EmailMultiAlternatives and switching
+provider is a matter of EMAIL_BACKEND alone.
+
+Which one to use comes down to sender identity, not features:
+
+  ResendAPIBackend  needs a DNS-verified domain before it will send to
+                    anyone but the account owner. Best once BCIP has a
+                    real domain.
+  BrevoAPIBackend   sends to any recipient once a single sender *address*
+                    is confirmed by clicking a link in that inbox, so it
+                    works without owning a domain.
 """
 from __future__ import annotations
 
 import base64
 import logging
+from email.utils import parseaddr
 
 import requests
 from django.conf import settings
@@ -19,71 +29,123 @@ from django.core.mail.backends.base import BaseEmailBackend
 
 logger = logging.getLogger(__name__)
 
-RESEND_ENDPOINT = 'https://api.resend.com/emails'
 
+class _HTTPEmailBackend(BaseEmailBackend):
+    """
+    Shared plumbing: one POST per message, uniform error handling.
 
-class ResendAPIBackend(BaseEmailBackend):
-    """Deliver each message with one POST to the Resend REST API."""
+    Subclasses supply the endpoint, the auth header, the provider's payload
+    shape, and how to pull a message id out of a success response.
+    """
+
+    name = 'http'
+    endpoint = ''
+    api_key_setting = ''
 
     def __init__(self, fail_silently=False, **kwargs):
         super().__init__(fail_silently=fail_silently, **kwargs)
-        self.api_key = getattr(settings, 'RESEND_API_KEY', '')
+        self.api_key = getattr(settings, self.api_key_setting, '')
         self.timeout = getattr(settings, 'EMAIL_TIMEOUT', 20)
 
+    # ── provider hooks ────────────────────────────────────────────────────
+    def headers(self) -> dict:
+        raise NotImplementedError
+
+    def payload(self, message) -> dict:
+        raise NotImplementedError
+
+    def message_id(self, data):
+        raise NotImplementedError
+
+    # ── django.core.mail interface ────────────────────────────────────────
     def send_messages(self, email_messages):
         if not email_messages:
             return 0
         if not self.api_key:
             if not self.fail_silently:
-                raise ValueError('RESEND_API_KEY is not set')
-            logger.error('RESEND_API_KEY is not set; dropping %s message(s)',
-                         len(email_messages))
+                raise ValueError(f'{self.api_key_setting} is not set')
+            logger.error('%s is not set; dropping %s message(s)',
+                         self.api_key_setting, len(email_messages))
             return 0
 
-        sent = 0
-        for message in email_messages:
-            if self._send(message):
-                sent += 1
-        return sent
+        return sum(1 for message in email_messages if self._send(message))
 
     def _send(self, message) -> bool:
-        payload = self._payload(message)
         try:
             response = requests.post(
-                RESEND_ENDPOINT,
-                json=payload,
-                headers={'Authorization': f'Bearer {self.api_key}'},
+                self.endpoint,
+                json=self.payload(message),
+                headers=self.headers(),
                 timeout=self.timeout,
             )
         except requests.RequestException as exc:
             if not self.fail_silently:
                 raise
-            logger.error('Resend request failed: %s', exc)
+            logger.error('%s request failed: %s', self.name, exc)
             return False
 
         if response.status_code >= 400:
-            # Resend answers errors as JSON; the body carries the real reason
-            # (unverified domain, bad key, ...) so surface it rather than a
-            # bare status code.
+            # The body carries the real reason — unverified sender, bad key,
+            # quota — so surface it rather than a bare status code.
             detail = response.text[:500]
             if not self.fail_silently:
                 raise RuntimeError(
-                    f'Resend returned {response.status_code}: {detail}'
+                    f'{self.name} returned {response.status_code}: {detail}'
                 )
-            logger.error('Resend returned %s: %s', response.status_code, detail)
+            logger.error('%s returned %s: %s', self.name, response.status_code, detail)
             return False
 
-        # Resend answers with the queued message id. Log it: acceptance is not
-        # delivery, and the id is the only handle for chasing a later bounce.
+        # Acceptance is not delivery; the id is the only handle for chasing a
+        # later bounce in the Render logs.
         try:
-            message_id = response.json().get('id')
+            message_id = self.message_id(response.json())
         except ValueError:
             message_id = None
-        logger.info('Resend accepted mail to %s (id=%s)', payload['to'], message_id)
-
+        logger.info('%s accepted mail to %s (id=%s)',
+                    self.name, message.to, message_id)
         return True
 
-    def _payload(self, message) -> dict:
+    # ── helpers ───────────────────────────────────────────────────────────
+    def sender(self, message):
+        """Split "Name <addr@host>" into its parts; name may be empty."""
+        return parseaddr(message.from_email or settings.DEFAULT_FROM_EMAIL)
+
+    def html_body(self, message):
+        for content, mimetype in getattr(message, 'alternatives', []):
+            if mimetype == 'text/html':
+                return content
+        return None
+
+    @staticmethod
+    def encoded_attachments(message):
+        for attachment in message.attachments:
+            if isinstance(attachment, tuple):
+                filename, content, _mimetype = attachment
+            else:  # a MIMEBase added via EmailMessage.attach()
+                filename = attachment.get_filename()
+                content = attachment.get_payload(decode=True)
+            if content is None:
+                continue
+            if isinstance(content, str):
+                content = content.encode('utf-8')
+            yield (filename or 'attachment',
+                   base64.b64encode(content).decode('ascii'))
+
+
+class ResendAPIBackend(_HTTPEmailBackend):
+    """https://resend.com/docs/api-reference/emails/send-email"""
+
+    name = 'Resend'
+    endpoint = 'https://api.resend.com/emails'
+    api_key_setting = 'RESEND_API_KEY'
+
+    def headers(self):
+        return {'Authorization': f'Bearer {self.api_key}'}
+
+    def message_id(self, data):
+        return data.get('id')
+
+    def payload(self, message):
         payload = {
             'from': message.from_email or settings.DEFAULT_FROM_EMAIL,
             'to': list(message.to),
@@ -97,36 +159,61 @@ class ResendAPIBackend(BaseEmailBackend):
         if message.reply_to:
             payload['reply_to'] = list(message.reply_to)
 
-        for content, mimetype in getattr(message, 'alternatives', []):
-            if mimetype == 'text/html':
-                payload['html'] = content
-                break
+        html = self.html_body(message)
+        if html:
+            payload['html'] = html
 
         attachments = [
-            encoded
-            for attachment in message.attachments
-            if (encoded := self._attachment(attachment)) is not None
+            {'filename': name, 'content': content}
+            for name, content in self.encoded_attachments(message)
         ]
         if attachments:
             payload['attachments'] = attachments
-
         return payload
 
-    @staticmethod
-    def _attachment(attachment):
-        """Normalise a Django attachment into Resend's {filename, content}."""
-        if isinstance(attachment, tuple):
-            filename, content, _mimetype = attachment
-        else:  # a MIMEBase instance added via EmailMessage.attach()
-            filename = attachment.get_filename()
-            content = attachment.get_payload(decode=True)
 
-        if content is None:
-            return None
-        if isinstance(content, str):
-            content = content.encode('utf-8')
+class BrevoAPIBackend(_HTTPEmailBackend):
+    """https://developers.brevo.com/reference/sendtransacemail"""
 
-        return {
-            'filename': filename or 'attachment',
-            'content': base64.b64encode(content).decode('ascii'),
+    name = 'Brevo'
+    endpoint = 'https://api.brevo.com/v3/smtp/email'
+    api_key_setting = 'BREVO_API_KEY'
+
+    def headers(self):
+        return {'api-key': self.api_key, 'accept': 'application/json'}
+
+    def message_id(self, data):
+        return data.get('messageId')
+
+    def payload(self, message):
+        name, address = self.sender(message)
+        sender = {'email': address}
+        if name:
+            sender['name'] = name
+
+        payload = {
+            'sender': sender,
+            'to': [{'email': recipient} for recipient in message.to],
+            'subject': message.subject,
+            'textContent': message.body,
         }
+        if message.cc:
+            payload['cc'] = [{'email': r} for r in message.cc]
+        if message.bcc:
+            payload['bcc'] = [{'email': r} for r in message.bcc]
+        if message.reply_to:
+            payload['replyTo'] = {'email': parseaddr(message.reply_to[0])[1]}
+
+        # Brevo rejects a payload with neither htmlContent nor templateId, so
+        # fall back to the plain-text body when the message has no HTML
+        # alternative of its own.
+        html = self.html_body(message)
+        payload['htmlContent'] = html or f'<pre>{message.body}</pre>'
+
+        attachments = [
+            {'name': name, 'content': content}
+            for name, content in self.encoded_attachments(message)
+        ]
+        if attachments:
+            payload['attachment'] = attachments
+        return payload

@@ -45,5 +45,9 @@ services:
         value: "notifications.email_backends.ResendAPIBackend"
       - key: RESEND_API_KEY
         sync: false
+      # Set BREVO_API_KEY and point EMAIL_BACKEND at BrevoAPIBackend to send
+      # from a confirmed sender address without owning a domain.
+      - key: BREVO_API_KEY
+        sync: false
       - key: DEFAULT_FROM_EMAIL
         sync: false
